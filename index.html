@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06C755">
+<meta property="og:title" content="つなぐ">
+<meta property="og:description" content="仕事探しを、友達の紹介で。">
+<title>つなぐ - 仕事探しを、友達の紹介で。</title>
+<!--
+  試作プロトタイプにつき、以下を意図的に省略しています。
+  - 本物のプッシュ通知: 「決まった！」を押しても実際には誰にも通知が飛ばず、画面内トーストのみ。本格対応はサーバー側でFCM/LINE Notify等を叩く入口を作る。
+  - サーバー保存: 全データはブラウザのlocalStorageのみ。端末を変えると消える。本格対応はAPIサーバー+DB(例: Firestore)に置き換える。
+  - 認証: 誰でも「自分のカードを作る」ができ、本人確認なし。本格対応はLINEログイン等のOAuthで支援者を認証する。
+-->
+<style>
+  :root{
+    --accent:#06C755;
+    --bg:#ffffff;
+    --fg:#1a1a1a;
+    --sub:#6b6b6b;
+    --line:#e6e6e6;
+    --card:#f7f7f7;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#eeeeee;
+    color:var(--fg);
+    font-size:14px;
+    line-height:1.6;
+  }
+  #app{
+    max-width:430px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  header.app-header{
+    padding:18px 16px 14px;
+    border-bottom:1px solid var(--line);
+    background:var(--bg);
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  header.app-header h1{
+    margin:0;
+    font-size:20px;
+    font-weight:700;
+  }
+  header.app-header p{
+    margin:4px 0 0;
+    font-size:13px;
+    color:var(--sub);
+  }
+  main{
+    flex:1;
+    padding:16px;
+    padding-bottom:90px;
+  }
+  .tab-section{display:none;}
+  .tab-section.active{display:block;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .card h3{
+    margin:0 0 6px;
+    font-size:16px;
+  }
+  .card .meta{
+    font-size:13px;
+    color:var(--sub);
+    margin:2px 0;
+  }
+  .card .comment{
+    margin:10px 0;
+    font-size:14px;
+  }
+  .card .stats{
+    font-size:12px;
+    color:var(--accent);
+    font-weight:700;
+    margin-top:8px;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:48px;
+    padding:0 18px;
+    border-radius:10px;
+    border:none;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    width:100%;
+  }
+  .btn-primary{
+    background:var(--accent);
+    color:#fff;
+  }
+  .btn-secondary{
+    background:#fff;
+    color:var(--fg);
+    border:1px solid var(--line);
+  }
+  .btn-ghost{
+    background:transparent;
+    color:var(--sub);
+    border:1px solid var(--line);
+    height:40px;
+    font-size:13px;
+    font-weight:600;
+  }
+  .btn-small{
+    height:36px;
+    font-size:12px;
+    padding:0 10px;
+  }
+  .btn-row{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+  .btn-row .btn{margin:0;}
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    margin:12px 0 6px;
+  }
+  input[type=text], input[type=url], textarea, select{
+    width:100%;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    font-size:14px;
+    font-family:inherit;
+    background:#fff;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  .form-box{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:16px;
+  }
+  .section-title{
+    font-size:15px;
+    font-weight:700;
+    margin:0 0 10px;
+  }
+  .divider{
+    border:none;
+    border-top:1px solid var(--line);
+    margin:20px 0;
+  }
+  nav.tabbar{
+    position:fixed;
+    left:50%;
+    transform:translateX(-50%);
+    bottom:0;
+    width:100%;
+    max-width:430px;
+    background:#fff;
+    border-top:1px solid var(--line);
+    display:flex;
+    z-index:20;
+  }
+  nav.tabbar button{
+    flex:1;
+    background:none;
+    border:none;
+    padding:10px 0 8px;
+    font-size:12px;
+    color:var(--sub);
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+  }
+  nav.tabbar button .icon{font-size:20px;}
+  nav.tabbar button.active{color:var(--accent);font-weight:700;}
+  .empty{
+    text-align:center;
+    color:var(--sub);
+    padding:30px 10px;
+    font-size:13px;
+  }
+  .generated-box{
+    background:#fff;
+    border:1px dashed var(--accent);
+    border-radius:10px;
+    padding:12px;
+    font-size:13px;
+    white-space:pre-wrap;
+    margin:10px 0;
+  }
+  .record-item{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:8px;
+    font-size:13px;
+  }
+  .record-item .top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .status-badge{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:20px;
+    font-size:11px;
+    font-weight:700;
+    background:var(--card);
+    border:1px solid var(--line);
+  }
+  .status-badge.done{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .status-select{
+    margin-top:8px;
+    height:34px;
+    font-size:12px;
+  }
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:80px;
+    transform:translateX(-50%);
+    background:#1a1a1a;
+    color:#fff;
+    padding:10px 18px;
+    border-radius:30px;
+    font-size:13px;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s;
+    z-index:100;
+    max-width:90%;
+    text-align:center;
+  }
+  .toast.show{opacity:1;}
+  .footer-settings{
+    margin-top:24px;
+    text-align:center;
+  }
+  .footer-settings button{
+    background:none;
+    border:none;
+    color:var(--sub);
+    font-size:11px;
+    text-decoration:underline;
+    cursor:pointer;
+  }
+  .hint{
+    font-size:12px;
+    color:var(--sub);
+    margin-top:4px;
+  }
+  .big-card{
+    text-align:center;
+    padding:26px 18px;
+  }
+  .big-card h2{
+    margin:6px 0 4px;
+    font-size:20px;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="app-header">
+    <h1>つなぐ</h1>
+    <p>仕事探しを、友達の紹介で。</p>
+  </header>
+
+  <main>
+    <!-- 支援者タブ -->
+    <section id="tab-supporters" class="tab-section">
+      <div class="section-title">支援者一覧</div>
+      <div id="supporter-list"></div>
+      <button class="btn btn-secondary" id="btn-open-form">＋ 自分のカードを作る</button>
+
+      <div class="form-box" id="supporter-form" style="display:none;">
+        <div class="section-title">カードを作る</div>
+        <label for="f-name">名前</label>
+        <input type="text" id="f-name" placeholder="例: 山田 太郎">
+        <label for="f-skill">得意分野</label>
+        <input type="text" id="f-skill" placeholder="例: 20代の転職・未経験IT">
+        <label for="f-area">対応地域</label>
+        <input type="text" id="f-area" placeholder="例: 全国・オンライン">
+        <label for="f-comment">一言</label>
+        <textarea id="f-comment" placeholder="例: まず話を聞くところから"></textarea>
+        <label for="f-line">LINE連絡先URL</label>
+        <input type="url" id="f-line" placeholder="https://line.me/ti/p/xxxx">
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-cancel-form">キャンセル</button>
+          <button class="btn btn-primary" id="btn-save-form">保存</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 紹介するタブ -->
+    <section id="tab-refer" class="tab-section">
+      <div class="section-title">友達を紹介する</div>
+      <label for="refer-select">支援者を選ぶ</label>
+      <select id="refer-select"></select>
+      <button class="btn btn-primary" id="btn-generate" style="margin-top:12px;">紹介文をつくる</button>
+
+      <div id="refer-generated" style="display:none;">
+        <div class="generated-box" id="refer-text"></div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-copy">コピー</button>
+          <button class="btn btn-primary" id="btn-line-share">LINEで送る</button>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">紹介の記録</div>
+      <div id="referral-records"></div>
+    </section>
+
+    <!-- 相談するタブ -->
+    <section id="tab-consult" class="tab-section">
+      <div class="section-title">支援者に相談する</div>
+      <div id="consult-area"></div>
+    </section>
+
+    <div class="footer-settings">
+      <button id="btn-reset">データ全消去</button>
+    </div>
+  </main>
+
+  <nav class="tabbar">
+    <button data-tab="tab-supporters" class="tabbtn active">
+      <span class="icon">👥</span><span>支援者</span>
+    </button>
+    <button data-tab="tab-refer" class="tabbtn">
+      <span class="icon">🔗</span><span>紹介する</span>
+    </button>
+    <button data-tab="tab-consult" class="tabbtn">
+      <span class="icon">💬</span><span>相談する</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "shokai_v1";
+  var resetArmed = false;
+  // 公開後のURL。file://で開いたときだけリンク生成に使う（file://のリンクは友達に送っても開けないため）
+  var PUBLIC_BASE = "https://ryoseiimai.github.io/tsunagu/";
+
+  function uid(prefix){
+    return prefix + "_" + Math.random().toString(36).slice(2, 9);
+  }
+
+  function getLinkBase(){
+    if(location.protocol === "file:"){
+      return PUBLIC_BASE;
+    }
+    return location.origin + location.pathname;
+  }
+
+  // ---------- base64url（日本語対応） ----------
+  function encodeSupporterParam(obj){
+    var json = JSON.stringify(obj);
+    var bytes = new TextEncoder().encode(json);
+    var binary = "";
+    for(var i=0;i<bytes.length;i++){
+      binary += String.fromCharCode(bytes[i]);
+    }
+    var b64 = btoa(binary);
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function decodeSupporterParam(str){
+    var b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+    while(b64.length % 4 !== 0){
+      b64 += "=";
+    }
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for(var i=0;i<binary.length;i++){
+      bytes[i] = binary.charCodeAt(i);
+    }
+    var json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+  }
+
+  function loadData(){
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      try{
+        return JSON.parse(raw);
+      }catch(e){
+        // 破損データは初期化する
+      }
+    }
+    var initial = {
+      supporters: [
+        {
+          id: uid("sup"),
+          name: "サンプル支援者",
+          skill: "20代の転職・未経験IT",
+          area: "全国・オンライン",
+          comment: "まず話を聞くところから",
+          lineUrl: "https://line.me/ti/p/xxxx",
+          referredCount: 0,
+          decidedCount: 0
+        }
+      ],
+      referrals: []
+    };
+    saveData(initial);
+    return initial;
+  }
+
+  function saveData(data){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  var data = loadData();
+
+  function findSupporter(id){
+    for(var i=0;i<data.supporters.length;i++){
+      if(data.supporters[i].id === id) return data.supporters[i];
+    }
+    return null;
+  }
+
+  function findReferral(id){
+    for(var i=0;i<data.referrals.length;i++){
+      if(data.referrals[i].id === id) return data.referrals[i];
+    }
+    return null;
+  }
+
+  // ---------- トースト ----------
+  var toastEl = document.getElementById("toast");
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    if(toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){
+      toastEl.classList.remove("show");
+    }, 2400);
+  }
+
+  // ---------- タブ切替 ----------
+  var tabButtons = document.querySelectorAll(".tabbtn");
+  var tabSections = document.querySelectorAll(".tab-section");
+
+  function switchTab(tabId){
+    tabSections.forEach(function(sec){
+      sec.classList.toggle("active", sec.id === tabId);
+    });
+    tabButtons.forEach(function(btn){
+      btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
+    });
+    if(tabId === "tab-supporters") renderSupporterList();
+    if(tabId === "tab-refer") { renderReferSelect(); renderReferralRecords(); }
+    if(tabId === "tab-consult") renderConsultArea();
+  }
+
+  tabButtons.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      switchTab(btn.getAttribute("data-tab"));
+    });
+  });
+
+  // ---------- 支援者タブ ----------
+  function renderSupporterList(){
+    var wrap = document.getElementById("supporter-list");
+    if(data.supporters.length === 0){
+      wrap.innerHTML = '<div class="empty">まだ支援者がいません</div>';
+      return;
+    }
+    wrap.innerHTML = "";
+    data.supporters.forEach(function(s){
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        "<h3>" + escapeHtml(s.name) + "</h3>" +
+        '<div class="meta">得意: ' + escapeHtml(s.skill) + "</div>" +
+        '<div class="meta">対応: ' + escapeHtml(s.area) + "</div>" +
+        '<div class="comment">「' + escapeHtml(s.comment) + '」</div>' +
+        '<div class="stats">紹介 ' + s.referredCount + '件／決定 ' + s.decidedCount + '件</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function escapeHtml(str){
+    var div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
+  var formBox = document.getElementById("supporter-form");
+  document.getElementById("btn-open-form").addEventListener("click", function(){
+    formBox.style.display = "block";
+  });
+  document.getElementById("btn-cancel-form").addEventListener("click", function(){
+    formBox.style.display = "none";
+    clearForm();
+  });
+
+  function clearForm(){
+    document.getElementById("f-name").value = "";
+    document.getElementById("f-skill").value = "";
+    document.getElementById("f-area").value = "";
+    document.getElementById("f-comment").value = "";
+    document.getElementById("f-line").value = "";
+  }
+
+  document.getElementById("btn-save-form").addEventListener("click", function(){
+    var name = document.getElementById("f-name").value.trim();
+    var skill = document.getElementById("f-skill").value.trim();
+    var area = document.getElementById("f-area").value.trim();
+    var comment = document.getElementById("f-comment").value.trim();
+    var lineUrl = document.getElementById("f-line").value.trim();
+
+    if(!name || !skill){
+      showToast("名前と得意分野は入力してください");
+      return;
+    }
+
+    data.supporters.push({
+      id: uid("sup"),
+      name: name,
+      skill: skill,
+      area: area || "応相談",
+      comment: comment || "",
+      lineUrl: lineUrl || "",
+      referredCount: 0,
+      decidedCount: 0
+    });
+    saveData(data);
+    formBox.style.display = "none";
+    clearForm();
+    renderSupporterList();
+    renderReferSelect();
+    showToast("カードを保存しました");
+  });
+
+  // ---------- 紹介するタブ ----------
+  function renderReferSelect(){
+    var sel = document.getElementById("refer-select");
+    sel.innerHTML = "";
+    data.supporters.forEach(function(s){
+      var opt = document.createElement("option");
+      opt.value = s.id;
+      opt.textContent = s.name + "（" + s.skill + "）";
+      sel.appendChild(opt);
+    });
+    document.getElementById("refer-generated").style.display = "none";
+  }
+
+  var lastGeneratedReferralId = null;
+
+  document.getElementById("btn-generate").addEventListener("click", function(){
+    var sel = document.getElementById("refer-select");
+    var supporterId = sel.value;
+    var supporter = findSupporter(supporterId);
+    if(!supporter){
+      showToast("支援者を選んでください");
+      return;
+    }
+
+    var refId = uid("ref") + Math.random().toString(36).slice(2,6);
+    var supporterParam = encodeSupporterParam({
+      name: supporter.name,
+      skill: supporter.skill,
+      area: supporter.area,
+      comment: supporter.comment,
+      lineUrl: supporter.lineUrl
+    });
+    var link = getLinkBase() + "?s=" + supporterParam + "&ref=" + refId;
+    var text = "仕事探してるって言ってたよね。" + supporter.name + "さんって人が転職の相談乗ってくれるから、よかったら話してみて → " + link;
+
+    data.referrals.push({
+      id: refId,
+      supporterId: supporter.id,
+      createdAt: new Date().toISOString(),
+      status: "送信済",
+      countedReferred: false,
+      countedDecided: false
+    });
+    saveData(data);
+    lastGeneratedReferralId = refId;
+
+    document.getElementById("refer-text").textContent = text;
+    document.getElementById("refer-generated").style.display = "block";
+    renderReferralRecords();
+  });
+
+  document.getElementById("btn-copy").addEventListener("click", function(){
+    var text = document.getElementById("refer-text").textContent;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        showToast("コピーしました");
+      }).catch(function(){
+        selectGeneratedText();
+      });
+    }else{
+      selectGeneratedText();
+    }
+  });
+
+  function selectGeneratedText(){
+    var el = document.getElementById("refer-text");
+    var range = document.createRange();
+    range.selectNodeContents(el);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    showToast("テキストを選択しました。手動でコピーしてください");
+  }
+
+  document.getElementById("btn-line-share").addEventListener("click", function(){
+    var text = document.getElementById("refer-text").textContent;
+    var url = "https://line.me/R/share?text=" + encodeURIComponent(text);
+    window.open(url, "_blank");
+  });
+
+  var STATUS_ORDER = ["送信済", "相談中", "決まった！", "別で決めた", "見送り"];
+
+  function renderReferralRecords(){
+    var wrap = document.getElementById("referral-records");
+    if(data.referrals.length === 0){
+      wrap.innerHTML = '<div class="empty">まだ紹介の記録がありません</div>';
+      return;
+    }
+    wrap.innerHTML = "";
+    var sorted = data.referrals.slice().sort(function(a,b){
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    sorted.forEach(function(r){
+      var supporter = findSupporter(r.supporterId);
+      var item = document.createElement("div");
+      item.className = "record-item";
+      var dateStr = new Date(r.createdAt).toLocaleString("ja-JP", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
+      var badgeClass = r.status === "決まった！" ? "status-badge done" : "status-badge";
+      item.innerHTML =
+        '<div class="top"><strong>' + escapeHtml(supporter ? supporter.name : "不明") + '</strong>' +
+        '<span class="' + badgeClass + '">' + escapeHtml(r.status) + '</span></div>' +
+        '<div class="meta">' + dateStr + '</div>';
+
+      var select = document.createElement("select");
+      select.className = "status-select";
+      STATUS_ORDER.forEach(function(st){
+        var opt = document.createElement("option");
+        opt.value = st;
+        opt.textContent = st;
+        if(st === r.status) opt.selected = true;
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", function(){
+        updateReferralStatus(r.id, select.value);
+      });
+      item.appendChild(select);
+      wrap.appendChild(item);
+    });
+  }
+
+  function updateReferralStatus(referralId, newStatus){
+    var r = findReferral(referralId);
+    if(!r) return;
+    var supporter = findSupporter(r.supporterId);
+    r.status = newStatus;
+
+    // 「相談中」以上（送信済を除く）で紹介数を重複加算なしで+1
+    var isCountedAsReferred = newStatus === "相談中" || newStatus === "決まった！" || newStatus === "別で決めた" || newStatus === "見送り";
+    if(supporter && isCountedAsReferred && !r.countedReferred){
+      supporter.referredCount += 1;
+      r.countedReferred = true;
+    }
+
+    // 「決まった！」で決定数を重複加算なしで+1
+    if(supporter && newStatus === "決まった！" && !r.countedDecided){
+      supporter.decidedCount += 1;
+      r.countedDecided = true;
+    }
+
+    saveData(data);
+    renderReferralRecords();
+    renderSupporterList();
+    renderConsultArea();
+  }
+
+  // ---------- 相談するタブ ----------
+  function getRefParam(){
+    var params = new URLSearchParams(location.search);
+    return params.get("ref");
+  }
+
+  function getSupporterParam(){
+    var params = new URLSearchParams(location.search);
+    var raw = params.get("s");
+    if(!raw) return { value: null, error: false };
+    try{
+      return { value: decodeSupporterParam(raw), error: false };
+    }catch(e){
+      return { value: null, error: true };
+    }
+  }
+
+  function renderConsultArea(){
+    var wrap = document.getElementById("consult-area");
+    var refId = getRefParam();
+    var referral = refId ? findReferral(refId) : null;
+    var supporter = referral ? findSupporter(referral.supporterId) : null;
+
+    var sResult = getSupporterParam();
+    var importedSupporter = null;
+    if(!supporter && sResult.value){
+      importedSupporter = sResult.value;
+      // localStorageに同名の支援者が既にあれば重複追加しない
+      var already = data.supporters.some(function(s){
+        return s.name === importedSupporter.name && s.skill === importedSupporter.skill;
+      });
+      if(!already){
+        importedSupporter.id = uid("sup");
+        importedSupporter.referredCount = 0;
+        importedSupporter.decidedCount = 0;
+        data.supporters.push(importedSupporter);
+        saveData(data);
+      }
+      supporter = importedSupporter;
+    }
+
+    if(!supporter){
+      var html = sResult.error
+        ? '<div class="empty">リンクが古いようです</div>'
+        : '<div class="empty">紹介リンクから開くとここに支援者が出ます</div>';
+      html += '<div class="section-title" style="margin-top:16px;">一覧から選ぶ</div>';
+      wrap.innerHTML = html;
+      data.supporters.forEach(function(s){
+        var card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML =
+          "<h3>" + escapeHtml(s.name) + "</h3>" +
+          '<div class="meta">得意: ' + escapeHtml(s.skill) + "</div>" +
+          '<div class="meta">対応: ' + escapeHtml(s.area) + "</div>" +
+          '<div class="comment">「' + escapeHtml(s.comment) + '」</div>';
+        var btn = document.createElement("button");
+        btn.className = "btn btn-secondary btn-small";
+        btn.textContent = "この支援者にLINEで相談する";
+        btn.addEventListener("click", function(){
+          if(s.lineUrl){
+            window.open(s.lineUrl, "_blank");
+          }else{
+            showToast("LINE連絡先が未設定です");
+          }
+        });
+        card.appendChild(btn);
+        wrap.appendChild(card);
+      });
+      return;
+    }
+
+    wrap.innerHTML = "";
+    var big = document.createElement("div");
+    big.className = "card big-card";
+    big.innerHTML =
+      '<div class="meta">紹介された支援者</div>' +
+      "<h2>" + escapeHtml(supporter.name) + "</h2>" +
+      '<div class="meta">得意: ' + escapeHtml(supporter.skill) + "</div>" +
+      '<div class="meta">対応: ' + escapeHtml(supporter.area) + "</div>" +
+      '<div class="comment">「' + escapeHtml(supporter.comment) + '」</div>';
+
+    var lineBtn = document.createElement("button");
+    lineBtn.className = "btn btn-primary";
+    lineBtn.style.marginTop = "14px";
+    lineBtn.textContent = "LINEで相談する";
+    lineBtn.addEventListener("click", function(){
+      if(supporter.lineUrl){
+        window.open(supporter.lineUrl, "_blank");
+      }else{
+        showToast("LINE連絡先が未設定です");
+      }
+      if(referral) updateReferralStatus(referral.id, "相談中");
+    });
+    big.appendChild(lineBtn);
+
+    var hint = document.createElement("div");
+    hint.className = "hint";
+    hint.style.marginTop = "16px";
+    hint.textContent = "決まったら紹介してくれた人に教えてあげてね";
+    big.appendChild(hint);
+
+    var doneBtn = document.createElement("button");
+    doneBtn.className = "btn btn-secondary btn-small";
+    doneBtn.style.marginTop = "8px";
+    doneBtn.textContent = "決まった！を送る";
+    doneBtn.addEventListener("click", function(){
+      if(referral){
+        updateReferralStatus(referral.id, "決まった！");
+      }
+      showToast("紹介者に通知しました（試作なので画面内だけ）");
+    });
+    big.appendChild(doneBtn);
+
+    wrap.appendChild(big);
+  }
+
+  // ---------- データ全消去（confirmは使わず2度押し） ----------
+  var resetBtn = document.getElementById("btn-reset");
+  var resetTimer = null;
+  resetBtn.addEventListener("click", function(){
+    if(!resetArmed){
+      resetArmed = true;
+      resetBtn.textContent = "もう一度押すと全消去します";
+      resetTimer = setTimeout(function(){
+        resetArmed = false;
+        resetBtn.textContent = "データ全消去";
+      }, 4000);
+      return;
+    }
+    localStorage.removeItem(STORAGE_KEY);
+    clearTimeout(resetTimer);
+    resetArmed = false;
+    resetBtn.textContent = "データ全消去";
+    data = loadData();
+    renderSupporterList();
+    renderReferSelect();
+    renderReferralRecords();
+    renderConsultArea();
+    showToast("データを初期化しました");
+  });
+
+  // ---------- 初期化 ----------
+  function init(){
+    renderSupporterList();
+    renderReferSelect();
+    renderReferralRecords();
+    renderConsultArea();
+
+    var refId = getRefParam();
+    if(refId){
+      switchTab("tab-consult");
+    }else{
+      switchTab("tab-supporters");
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
