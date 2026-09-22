@@ -3,314 +3,421 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#06C755">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F2F7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
+<link rel="icon" type="image/png" href="logo/tsunagu_icon_216.png">
+<link rel="apple-touch-icon" href="logo/tsunagu_icon_216.png">
 <title>つなぐ - 使い方</title>
 <!--
   試作マニュアルにつき、以下を意図的に省略しています。
   - 動画・音声での説明: 文字と図のみ。本格対応は短い操作動画を埋め込む入口を作る。
   - 検索機能: セクションが3つだけなので省略。増えたら検索ボックスを足す入口。
+
+  見た目: DESIGN-v3.md（Apple HIG 準拠）。index.html と同じトークン・字面。
+  Icons: Lucide (ISC) https://lucide.dev — 線アイコンをインライン SVG で埋め込み。図もインライン SVG（画像ファイルは使わない）。
 -->
 <style>
   :root{
+    color-scheme:light dark;
+    --bg:#F2F2F7;
+    --surface:#FFFFFF;
+    --label:#000000;
+    --label-2:#6E6E73;
+    --label-3:#AEAEB2;
+    --separator:#C6C6C8;
+    --fill:rgba(120,120,128,.12);
     --accent:#06C755;
-    --bg:#ffffff;
-    --fg:#1a1a1a;
-    --sub:#6b6b6b;
-    --line:#e6e6e6;
-    --card:#f7f7f7;
+    --accent-text:#00873C;
+    --primary:#000000;
+    --on-primary:#FFFFFF;
+    --material:rgba(242,242,247,.82);
+    --ease:cubic-bezier(.2,.8,.2,1);
+    --nav-h:44px;
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#000000;
+      --surface:#1C1C1E;
+      --label:#FFFFFF;
+      --label-2:#98989D;
+      --label-3:#636366;
+      --separator:#38383A;
+      --fill:rgba(118,118,128,.24);
+      --accent-text:#30D158;
+      --primary:#FFFFFF;
+      --on-primary:#000000;
+      --material:rgba(0,0,0,.72);
+    }
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;background:var(--bg);scroll-behavior:smooth;}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
-    background:#eeeeee;
-    color:var(--fg);
-    font-size:16px;
-    line-height:1.7;
-  }
-  #app{
-    max-width:720px;
-    margin:0 auto;
-    min-height:100vh;
-    background:var(--bg);
-    padding-bottom:40px;
-  }
-  header.app-header{
-    padding:22px 20px 18px;
-    border-bottom:1px solid var(--line);
-    background:var(--bg);
-    position:sticky;
-    top:0;
-    z-index:10;
-    text-align:center;
-  }
-  header.app-header h1{
     margin:0;
-    font-size:26px;
-    font-weight:700;
-  }
-  header.app-header p{
-    margin:6px 0 0;
-    font-size:14px;
-    color:var(--sub);
-  }
-  main{
-    padding:20px;
-  }
-  section{
-    margin-bottom:36px;
-  }
-  h2{
-    font-size:24px;
-    margin:0 0 12px;
-    font-weight:700;
-  }
-  h3{
-    font-size:18px;
-    margin:0 0 8px;
-  }
-  p{
-    margin:0 0 14px;
-    font-size:16px;
-  }
-  .diagram{
-    width:100%;
-    max-width:560px;
-    display:block;
-    margin:0 auto 8px;
-  }
-  .diagram-caption{
-    text-align:center;
-    font-size:14px;
-    color:var(--sub);
-    margin:0 0 24px;
-  }
-  .role-nav{
-    display:flex;
-    flex-direction:column;
-    gap:12px;
-    margin:20px 0 32px;
-  }
-  .role-btn{
-    display:flex;
-    align-items:center;
-    gap:14px;
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:16px;
-    min-height:64px;
-    text-decoration:none;
-    color:var(--fg);
-    font-weight:700;
-    font-size:16px;
-  }
-  .role-btn .emoji{
-    font-size:26px;
-    flex-shrink:0;
-  }
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:18px;
-    margin-bottom:18px;
-  }
-  .step{
-    display:flex;
-    gap:14px;
-    align-items:flex-start;
-    margin-bottom:16px;
-  }
-  .step .num{
-    flex-shrink:0;
-    width:32px;
-    height:32px;
-    border-radius:50%;
-    background:var(--accent);
-    color:#fff;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-weight:700;
-    font-size:15px;
-  }
-  .step p{
-    margin:0;
-    font-size:16px;
-  }
-  .step p b{
-    display:block;
+    background:var(--bg);
+    color:var(--label);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
     font-size:17px;
-    margin-bottom:2px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
-  .back-link{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    height:44px;
-    padding:0 18px;
-    border-radius:10px;
-    border:1px solid var(--line);
-    background:#fff;
-    color:var(--fg);
-    text-decoration:none;
-    font-size:14px;
-    font-weight:700;
+  a{color:var(--accent-text);text-decoration:none;-webkit-tap-highlight-color:transparent;}
+  :focus{outline:none;}
+  :focus-visible{outline:2px solid var(--accent-text);outline-offset:2px;}
+  svg.i{width:24px;height:24px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .ico{display:inline-flex;align-items:center;justify-content:center;}
+  #app{max-width:720px;margin:0 auto;min-height:100vh;min-height:100dvh;padding-bottom:calc(40px + env(safe-area-inset-bottom));}
+
+  /* 文字 */
+  .t-large{font-size:34px;line-height:1.2;font-weight:700;letter-spacing:-.01em;font-feature-settings:"palt" 1;}
+  .t-title3{font-size:20px;line-height:1.35;font-weight:600;font-feature-settings:"palt" 1;}
+  .t-headline{font-size:17px;line-height:1.4;font-weight:600;}
+  .t-body{font-size:17px;line-height:1.6;font-weight:400;}
+  .t-foot{font-size:14px;line-height:1.5;font-weight:400;}
+  .l2{color:var(--label-2);}
+  .center{text-align:center;}
+  p{margin:0 0 16px;}
+
+  /* ナビバー */
+  .nav{
+    position:sticky;top:0;z-index:20;
+    display:grid;grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr);align-items:center;
+    height:calc(var(--nav-h) + env(safe-area-inset-top));
+    padding:env(safe-area-inset-top) 8px 0;
+    transition:background .2s;
   }
-  .trouble{
-    background:var(--card);
-    border-radius:14px;
-    padding:18px;
-    font-size:15px;
+  .nav::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:bottom;opacity:0;transition:opacity .2s;}
+  .nav.scrolled{background:var(--material);-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);}
+  .nav.scrolled::after{opacity:1;}
+  .nav-title{grid-column:2;font-size:17px;font-weight:600;line-height:1.4;text-align:center;opacity:0;transition:opacity .2s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .nav.scrolled .nav-title{opacity:1;}
+  .nav-left{grid-column:1;justify-self:start;display:flex;align-items:center;}
+  .nav-right{grid-column:3;justify-self:end;display:flex;align-items:center;}
+  .nav-btn{height:44px;padding:0 12px 0 6px;display:inline-flex;align-items:center;gap:2px;font-size:17px;line-height:1;color:var(--accent-text);white-space:nowrap;transition:opacity .15s;}
+  .nav-btn:active{opacity:.4;}
+  .nav-btn svg{width:22px;height:22px;}
+  .large-title{margin:0;padding:4px 16px 12px;}
+  .content{padding:0 16px;}
+
+  /* ボタン */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:0;border-radius:999px;font-size:17px;font-weight:600;line-height:1;
+    cursor:pointer;user-select:none;-webkit-user-select:none;padding:0 20px;
+    transition:transform .2s var(--ease);text-decoration:none;
   }
-  .trouble p{
-    margin:0 0 8px;
-    font-size:15px;
-  }
-  .trouble p:last-child{margin-bottom:0;}
-  a{color:var(--fg);}
-  footer{
-    text-align:center;
-    padding:20px;
-    font-size:13px;
-    color:var(--sub);
+  .btn:active{transform:scale(.97);}
+  .btn-primary{height:52px;width:100%;max-width:320px;background:var(--primary);color:var(--on-primary);}
+  .btn-text{height:44px;background:none;color:var(--accent-text);font-weight:400;padding:0 12px;}
+  .stack{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:32px;}
+
+  /* セクション・セル */
+  .sec-head{font-size:14px;line-height:1.5;color:var(--label-2);padding:0 16px;margin:24px 0 8px;}
+  .sec{background:var(--surface);border-radius:20px;overflow:hidden;}
+  .sec-foot{font-size:14px;line-height:1.5;color:var(--label-2);padding:8px 16px 0;margin:0;}
+  .cell{position:relative;display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:44px;color:var(--label);}
+  .cell + .cell::before{content:"";position:absolute;left:16px;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .cell-tap{cursor:pointer;transition:background .15s;}
+  .cell-tap:active{background:var(--fill);}
+  .cell-main{flex:1;min-width:0;}
+  .cell-title{font-size:17px;font-weight:600;line-height:1.4;}
+  .chev{color:var(--label-3);flex-shrink:0;display:inline-flex;}
+  .chev svg{width:20px;height:20px;}
+  .avatar{width:44px;height:44px;border-radius:50%;background:var(--fill);color:var(--accent-text);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .avatar.sm{width:32px;height:32px;}
+  .avatar.sm svg{width:18px;height:18px;}
+
+  /* 図 */
+  .diagram{display:block;width:100%;height:auto;padding:16px 8px 8px;}
+  .d-node{fill:var(--fill);}
+  .d-main{fill:var(--primary);}
+  .d-label{fill:var(--label);font-size:14px;font-weight:600;font-family:inherit;}
+  .d-label-main{fill:var(--on-primary);}
+  .d-sub{fill:var(--on-primary);font-size:14px;font-family:inherit;opacity:.75;}
+  .d-icon{stroke:var(--accent-text);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .d-icon-main{stroke:var(--on-primary);}
+  .d-arrow{stroke:var(--label-2);stroke-width:2;stroke-linecap:round;fill:none;}
+  .d-head{fill:var(--label-2);}
+  .caption{padding:0 16px 16px;margin:0;}
+
+  /* 手順 */
+  .guide{margin-top:40px;}
+  .guide-title{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:0 4px;}
+  .guide>p{padding:0 4px;}
+  .step{position:relative;display:flex;align-items:flex-start;gap:14px;padding:16px;}
+  .step + .step::before{content:"";position:absolute;left:16px;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .num{width:28px;height:28px;border-radius:50%;background:var(--primary);color:var(--on-primary);font-size:15px;font-weight:600;line-height:1;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+  .step-main{flex:1;min-width:0;}
+  .step-main p{margin:4px 0 0;}
+  .tip{position:relative;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;}
+  .tip + .tip::before{content:"";position:absolute;left:16px;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .tip .ico{color:var(--label-2);margin-top:2px;}
+  .tip .ico svg{width:20px;height:20px;}
+  .tip p{margin:0;}
+  footer{padding:32px 16px 0;display:flex;flex-direction:column;align-items:center;gap:8px;}
+  footer .brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--label-2);}
+  footer .brand img{width:20px;height:20px;border-radius:5px;}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{transition:none !important;animation:none !important;}
+    html{scroll-behavior:auto;}
   }
 </style>
 </head>
 <body>
 <div id="app">
 
-  <header class="app-header">
-    <h1>つなぐ の使い方</h1>
-    <p>仕事探しを、友達の紹介で。</p>
+  <header class="nav">
+    <div class="nav-left"><a class="nav-btn" href="index.html"><span class="ico" data-icon="chevron-left"></span>つなぐ</a></div>
+    <div class="nav-title">使い方</div>
+    <div class="nav-right"></div>
   </header>
+  <h1 class="t-large large-title">使い方</h1>
 
-  <main>
+  <div class="content">
+    <p class="t-body l2">「つなぐ」には、3人の登場人物がいます。この図のとおり、友達の輪でつながります。</p>
 
-    <section id="top">
-      <p>「つなぐ」には、3人の登場人物がいます。この図のとおりに、友達の輪でつながります。</p>
-
-      <svg class="diagram" viewBox="0 0 560 180" role="img" aria-label="支援する人から紹介する人へ、紹介する人から仕事を探している人へ、矢印でつながる図">
+    <div class="sec">
+      <svg class="diagram" viewBox="0 0 358 128" role="img" aria-label="支援する人から紹介する人へ、紹介する人から仕事を探している人へ、矢印でつながる図">
         <!-- 支援する人 -->
-        <g>
-          <rect x="10" y="60" width="150" height="70" rx="14" fill="#f7f7f7" stroke="#e6e6e6"/>
-          <text x="85" y="88" text-anchor="middle" font-size="26">💼</text>
-          <text x="85" y="112" text-anchor="middle" font-size="14" fill="#1a1a1a" font-weight="700">支援する人</text>
-        </g>
+        <rect class="d-node" x="0" y="8" width="100" height="112" rx="16"/>
+        <svg class="d-icon" x="36" y="22" width="28" height="28" viewBox="0 0 24 24"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/></svg>
+        <text class="d-label" x="50" y="78" text-anchor="middle">支援する人</text>
+        <text class="d-label l2-fill" x="50" y="100" text-anchor="middle" style="fill:var(--label-2);font-weight:400;">カードを作る</text>
         <!-- 矢印1 -->
-        <line x1="165" y1="95" x2="200" y2="95" stroke="#06C755" stroke-width="3"/>
-        <polygon points="200,88 214,95 200,102" fill="#06C755"/>
-        <!-- 紹介する人 -->
-        <g>
-          <rect x="215" y="55" width="150" height="80" rx="14" fill="#f7f7f7" stroke="#06C755" stroke-width="2"/>
-          <text x="290" y="86" text-anchor="middle" font-size="26">🤝</text>
-          <text x="290" y="110" text-anchor="middle" font-size="14" fill="#1a1a1a" font-weight="700">紹介する人</text>
-          <text x="290" y="126" text-anchor="middle" font-size="11" fill="#6b6b6b">（主役）</text>
-        </g>
+        <path class="d-arrow" d="M104 64h14"/>
+        <polygon class="d-head" points="118,58 128,64 118,70"/>
+        <!-- 紹介する人（主役） -->
+        <rect class="d-main" x="129" y="8" width="100" height="112" rx="16"/>
+        <svg class="d-icon d-icon-main" x="165" y="22" width="28" height="28" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <text class="d-label d-label-main" x="179" y="78" text-anchor="middle">紹介する人</text>
+        <text class="d-sub" x="179" y="100" text-anchor="middle">友達に送る</text>
         <!-- 矢印2 -->
-        <line x1="370" y1="95" x2="405" y2="95" stroke="#06C755" stroke-width="3"/>
-        <polygon points="405,88 419,95 405,102" fill="#06C755"/>
+        <path class="d-arrow" d="M233 64h14"/>
+        <polygon class="d-head" points="247,58 257,64 247,70"/>
         <!-- 仕事を探している人 -->
-        <g>
-          <rect x="420" y="60" width="140" height="70" rx="14" fill="#f7f7f7" stroke="#e6e6e6"/>
-          <text x="490" y="88" text-anchor="middle" font-size="26">🙂</text>
-          <text x="490" y="108" text-anchor="middle" font-size="13" fill="#1a1a1a" font-weight="700">仕事を探して</text>
-          <text x="490" y="124" text-anchor="middle" font-size="13" fill="#1a1a1a" font-weight="700">いる人</text>
-        </g>
+        <rect class="d-node" x="258" y="8" width="100" height="112" rx="16"/>
+        <svg class="d-icon" x="294" y="22" width="28" height="28" viewBox="0 0 24 24"><circle cx="10" cy="7" r="4"/><path d="M10.3 15H7a4 4 0 0 0-4 4v2"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/></svg>
+        <text class="d-label" x="308" y="78" text-anchor="middle">仕事を探す人</text>
+        <text class="d-label" x="308" y="100" text-anchor="middle" style="fill:var(--label-2);font-weight:400;">相談する</text>
       </svg>
-      <p class="diagram-caption">支援する人がカードを作り → 紹介する人が友達に送り → 仕事を探している人がリンクを開いて相談します。</p>
+      <p class="t-foot l2 caption">支援する人がカードを作り、紹介する人が友達に送り、仕事を探している人がリンクを開いて相談します。</p>
+    </div>
 
-      <p>自分がどれに当てはまるか、下から選ぶと、そこだけ読めば分かるようになっています。</p>
+    <div class="sec-head">自分に合うところだけ読めば大丈夫です</div>
+    <div class="sec">
+      <a class="cell cell-tap" href="#introducer">
+        <span class="avatar"><span class="ico" data-icon="users"></span></span>
+        <div class="cell-main"><div class="cell-title">友達を紹介したい人へ</div></div>
+        <span class="chev ico" data-icon="chevron-right"></span>
+      </a>
+      <a class="cell cell-tap" href="#supporter">
+        <span class="avatar"><span class="ico" data-icon="briefcase"></span></span>
+        <div class="cell-main"><div class="cell-title">仕事探しを手伝っている人へ</div></div>
+        <span class="chev ico" data-icon="chevron-right"></span>
+      </a>
+      <a class="cell cell-tap" href="#seeker">
+        <span class="avatar"><span class="ico" data-icon="user-search"></span></span>
+        <div class="cell-main"><div class="cell-title">仕事を探している人へ</div></div>
+        <span class="chev ico" data-icon="chevron-right"></span>
+      </a>
+    </div>
 
-      <div class="role-nav">
-        <a class="role-btn" href="#introducer"><span class="emoji">🤝</span>友達を紹介したい人へ</a>
-        <a class="role-btn" href="#supporter"><span class="emoji">💼</span>仕事探しを手伝っている人へ</a>
-        <a class="role-btn" href="#seeker"><span class="emoji">🙂</span>仕事を探している人へ</a>
+    <section id="introducer" class="guide">
+      <h2 class="t-title3 guide-title"><span class="avatar sm"><span class="ico" data-icon="users"></span></span>友達を紹介したい人へ</h2>
+      <p class="t-body l2">「あいつ仕事探してたな」と思ったときに使います。やることは3つだけです。</p>
+      <div class="sec">
+        <div class="step">
+          <span class="num">1</span>
+          <div class="step-main">
+            <div class="cell-title">紹介できる人を見る</div>
+            <p class="t-body">ホームに、相談に乗ってくれる人のカードが並びます。まだ誰もいないときは、誘い文をコピーして知り合いに送ると、カードを作ってもらえます。</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="num">2</span>
+          <div class="step-main">
+            <div class="cell-title">「紹介する」を押す</div>
+            <p class="t-body">友達の名前を入れると（入れなくても大丈夫です）、送る文面ができあがります。気になるところは書き換えられます。</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="num">3</span>
+          <div class="step-main">
+            <div class="cell-title">LINEで送る</div>
+            <p class="t-body">緑のボタンを押すと、そのままLINEで友達に送れます。送ったあとは一覧に残るので、あとで「決まった！」になったか見に来られます。</p>
+          </div>
+        </div>
+      </div>
+      <p class="sec-foot">友達が相談を始めると、一覧の表示が「相談してるみたい」に変わります。決まったら「決まった！」でお祝いの表示になります。</p>
+    </section>
+
+    <section id="supporter" class="guide">
+      <h2 class="t-title3 guide-title"><span class="avatar sm"><span class="ico" data-icon="briefcase"></span></span>仕事探しを手伝っている人へ</h2>
+      <p class="t-body l2">相談に乗る自分のカードを作って、紹介してくれる人に配ります。やることは3つだけです。</p>
+      <div class="sec">
+        <div class="step">
+          <span class="num">1</span>
+          <div class="step-main">
+            <div class="cell-title">自分のカードを作る</div>
+            <p class="t-body">名前・得意分野・対応地域・一言・LINEのリンクを入れます。これが、紹介された人に届く見た目そのものです。</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="num">2</span>
+          <div class="step-main">
+            <div class="cell-title">「紹介してくれる人に配る」を押す</div>
+            <p class="t-body">自分のカードが入ったリンクができます。LINEで送るか、コピーして貼り付けられます。</p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="num">3</span>
+          <div class="step-main">
+            <div class="cell-title">相談を待つ</div>
+            <p class="t-body">紹介されてきた人がホームの一覧に増えていきます。まだ誰もいないときは「まだいません」と出るだけなので、心配いりません。</p>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section id="introducer">
-      <h2>🤝 友達を紹介したい人へ</h2>
-      <p>「あいつ仕事探してたな」と思ったときに使います。やることは3つだけです。</p>
-
-      <div class="card">
+    <section id="seeker" class="guide">
+      <h2 class="t-title3 guide-title"><span class="avatar sm"><span class="ico" data-icon="user-search"></span></span>仕事を探している人へ</h2>
+      <p class="t-body l2">アプリを入れる必要はありません。送られてきたリンクを開くだけです。やることは3つだけです。</p>
+      <div class="sec">
         <div class="step">
-          <div class="num">1</div>
-          <p><b>紹介できる人を見る</b>ホームに、相談に乗ってくれる人のカードが並びます。まだ誰もいないときは、誘い文をコピーして知り合いに送ると、カードを作ってもらえます。</p>
+          <span class="num">1</span>
+          <div class="step-main">
+            <div class="cell-title">送られてきたリンクを開く</div>
+            <p class="t-body">友達が選んでくれた、相談に乗ってくれる人のカードが出てきます。誰の紹介かも分かるようになっています。</p>
+          </div>
         </div>
         <div class="step">
-          <div class="num">2</div>
-          <p><b>「この人を紹介する」を押す</b>友達の名前を入れると（入れなくても大丈夫です）、送る文面ができあがります。気になるところは書き換えられます。</p>
+          <span class="num">2</span>
+          <div class="step-main">
+            <div class="cell-title">「LINEで相談する」を押す</div>
+            <p class="t-body">そのままLINEで話しかけられます。知り合いからの紹介なので、身構えなくて大丈夫です。</p>
+          </div>
         </div>
         <div class="step">
-          <div class="num">3</div>
-          <p><b>LINEで送る</b>緑のボタンを押すと、そのままLINEで友達に送れます。送ったあとは一覧に残るので、あとで「決まった！」になったか見に来られます。</p>
+          <span class="num">3</span>
+          <div class="step-main">
+            <div class="cell-title">決まったら教えてあげる</div>
+            <p class="t-body">仕事が決まったら、画面の下にある「決まった！を送る」を押すと、紹介してくれた友達に伝わります。</p>
+          </div>
         </div>
-      </div>
-
-      <p>友達が相談を始めると、一覧の表示が「相談してるみたい」に変わります。決まったら「決まった！」でお祝いの表示になります。</p>
-
-      <a class="back-link" href="index.html">← アプリに戻る</a>
-    </section>
-
-    <section id="supporter">
-      <h2>💼 仕事探しを手伝っている人へ</h2>
-      <p>相談に乗る自分のカードを作って、紹介してくれる人に配ります。やることは3つだけです。</p>
-
-      <div class="card">
-        <div class="step">
-          <div class="num">1</div>
-          <p><b>自分のカードを作る</b>名前・得意分野・対応地域・一言・LINEのリンクを入れます。これが、紹介された人に届く見た目そのものです。</p>
-        </div>
-        <div class="step">
-          <div class="num">2</div>
-          <p><b>「紹介してくれる人に配る」を押す</b>自分のカードが入ったリンクができます。LINEで送るか、コピーして貼り付けられます。</p>
-        </div>
-        <div class="step">
-          <div class="num">3</div>
-          <p><b>相談を待つ</b>紹介されてきた人がホームの一覧に増えていきます。まだ誰もいないときは「まだいません」と出るだけなので、心配いりません。</p>
-        </div>
-      </div>
-
-      <a class="back-link" href="index.html">← アプリに戻る</a>
-    </section>
-
-    <section id="seeker">
-      <h2>🙂 仕事を探している人へ</h2>
-      <p>アプリを入れる必要はありません。送られてきたリンクを開くだけです。やることは3つだけです。</p>
-
-      <div class="card">
-        <div class="step">
-          <div class="num">1</div>
-          <p><b>送られてきたリンクを開く</b>友達が選んでくれた、相談に乗ってくれる人のカードが出てきます。誰の紹介かも分かるようになっています。</p>
-        </div>
-        <div class="step">
-          <div class="num">2</div>
-          <p><b>「LINEで相談する」を押す</b>そのままLINEで話しかけられます。知り合いからの紹介なので、身構えなくて大丈夫です。</p>
-        </div>
-        <div class="step">
-          <div class="num">3</div>
-          <p><b>決まったら教えてあげる</b>仕事が決まったら、画面の下にある「決まった！を送る」を押すと、紹介してくれた友達に伝わります。</p>
-        </div>
-      </div>
-
-      <a class="back-link" href="index.html">← アプリに戻る</a>
-    </section>
-
-    <section id="trouble">
-      <h2>うまくいかないとき</h2>
-      <div class="trouble">
-        <p>リンクを開いても何も出ないときは、リンクが途中で切れていないか確認すると直ることが多いです。</p>
-        <p>LINEで送るボタンが反応しないときは、下にある「コピー」から文面をコピーして、LINEに貼り付けると送れます。</p>
-        <p>それでも直らないときは、紹介してくれた友達か、カードを作った人にもう一度リンクを送ってもらうと、たいてい解決します。</p>
       </div>
     </section>
 
-  </main>
+    <section id="trouble" class="guide">
+      <h2 class="t-title3 guide-title"><span class="avatar sm"><span class="ico" data-icon="circle-help"></span></span>うまくいかないとき</h2>
+      <div class="sec">
+        <div class="tip"><span class="ico" data-icon="link"></span><p class="t-body">リンクを開いても何も出ないときは、リンクが途中で切れていないか確認すると直ることが多いです。</p></div>
+        <div class="tip"><span class="ico" data-icon="copy"></span><p class="t-body">LINEで送るボタンが反応しないときは、下にある「コピー」から文面をコピーして、LINEに貼り付けると送れます。</p></div>
+        <div class="tip"><span class="ico" data-icon="refresh-cw"></span><p class="t-body">それでも直らないときは、紹介してくれた友達か、カードを作った人にもう一度リンクを送ってもらうと、たいてい解決します。</p></div>
+      </div>
+    </section>
 
-  <footer>つなぐ</footer>
+    <div class="stack">
+      <a class="btn btn-primary" href="index.html">つなぐを開く</a>
+    </div>
 
+    <footer>
+      <div class="brand"><img src="logo/tsunagu_icon_216.png" alt="">つなぐ</div>
+      <a class="t-foot" href="privacy.html">プライバシーポリシー</a>
+    </footer>
+  </div>
 </div>
+
+<script>
+(function(){
+  "use strict";
+  // Icons: Lucide (ISC)
+  var ICONS = {
+    "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    "briefcase": '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+    "user-search": '<circle cx="10" cy="7" r="4"/><path d="M10.3 15H7a4 4 0 0 0-4 4v2"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>',
+    "circle-help": '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    "copy": '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    "refresh-cw": '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>'
+  };
+  document.querySelectorAll("[data-icon]").forEach(function(el){
+    el.innerHTML = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[el.getAttribute("data-icon")] || "") + "</svg>";
+  });
+  // 大見出しがナビの下に隠れたら、小さい中央タイトル付きの半透明バーにする
+  var nav = document.querySelector(".nav");
+  var title = document.querySelector(".large-title");
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        nav.classList.toggle("scrolled", !en.isIntersecting && en.boundingClientRect.top < 0);
+      });
+    }, { rootMargin: "-44px 0px 0px 0px", threshold: 0 }).observe(title);
+  }
+})();
+</script>
+<!--
+  budoux-wrap.html — 日本語テキストの「文節・単語の途中」での折り返しを防ぐ自己完結スニペット。
+  使い方: </body> 直前にこのファイルの中身をそのまま貼るだけ。
+  仕組み: Google BudouX（MIT License, Copyright 2021 Google LLC）の分かち書きモデルを
+  最小パーサーで実行し、DOMContentLoaded後に対象要素の文中に<wbr>（任意の改行可能位置）を挿入する。
+  MutationObserverは使わない（初期描画のみ・動的追加分は再実行が必要なら insertPhraseBreaks() を呼び直す）。
+  対象セレクタは BUDOUX_WRAP_SELECTOR で変更可（CSS側のセレクタも合わせて変える）。
+-->
+<style>
+h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,blockquote,figcaption{
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+  line-break:strict;
+}
+h1,h2,h3,h4,h5,h6{text-wrap:balance;}
+p,li,td,th,dt,dd,blockquote,figcaption{text-wrap:pretty;}
+</style>
+<script>
+(function(){
+'use strict';
+// BudouX (MIT License, Copyright 2021 Google LLC) - 日本語分かち書きモデル（ja）
+const BUDOUX_JA_MODEL={"UW3":{"。":7331,"の":4438,"、":5474,"に":4335,"を":6140,"が":4577,"は":4653,"と":3626,"る":3301,"も":3679,"で":3706,"た":2639,"な":2949,"て":2767,"う":2494,"く":2935,"い":2058,"ら":1690,"っ":-1794,"や":2604,"？":4334,"，":4119,"］":2440,"?":4664,"ば":2526,"ぐ":3001,"り":1280,"！":4003,"か":2214,"ん":1063,"．":2432,"]":3594,"ー":-197,"…":3125,"・":1048,"ど":1749,"お":-2026,"空":1563,"こ":183,"）":3330,"へ":2276,"つ":1371,"」":1822,"ッ":-2059,"方":888,"だ":1055,"☆":3592,"笑":3650,"ス":-861,"ン":-563,"「":-1977,"♪":2801,"ろ":1311,"イ":-908,"日":830,"ず":1808,"間":958,"々":2067,"部":542,"中":1200,"ゃ":1311,"今":1154,"ご":-1325,"京":-1379,"★":2952,"電":-1431,"分":1190,"す":1109,"ぬ":2615,"あ":1168,"感":738,"大":-1219,"人":341,"プ":-1102,"フ":-1375,"上":625,"せ":688,"ぁ":1694,"０":-805,"度":1238,"後":1303,"〜":956,"ア":-1107,"む":1491,"観":-957,"時":185,"１":-1318,"き":484,"都":-296,"以":-984,"ぶ":1284,"然":1170,"え":910,"わ":-220,"ラ":-281,"”":1246,"新":-866,"超":1609,"カ":-553,"夜":1518,"体":891,"ト":-93,"ロ":-757,"し":407,"変":779,"み":505,"[":-1045,"ド":-561,"択":970,"昔":1709,"シ":-735,"［":-768,"ジ":-176,"味":546,"光":-318,"ち":592,"『":-837,"タ":-162,"品":129,"さ":-84,"ま":-43,"年":339,"皆":969,"秋":1113,"的":430,"段":56,"水":342,"ぞ":1024,"果":361,"ぱ":723,"よ":608,"学":-397,"　":451,"じ":533,"自":-336,"ｏ":-464,"区":924,"題":809,"最":-519,"料":-412,"用":-416,"れ":190,"バ":-268,"ね":723,"機":-217,"：":381,"系":687,"け":117,"発":-399,"番":289,"色":486,"程":505,"行":-355,"意":-122,"技":209,"別":234,"デ":-279,"斤":509,"所":345,"場":-68,"】":480,"ニ":-140,"レ":-180,"子":-211,"入":-192,"台":499,"テ":-147,"ク":110,"素":-168,"前":192,"』":284,"週":143,"月":112,"不":-86,"開":-90,"モ":-107,"作":-90,"選":-102,"始":-93,"現":-76,"生":-55,"代":-63,"５":-59,"能":-29,"ビ":-4},"UW4":{"の":-4526,"。":-7835,"に":-4664,"が":-4054,"、":-8150,"て":-3970,"は":-3843,"で":-3133,"る":-5856,"と":-3243,"を":-5179,"っ":-4802,"か":-2915,"り":-4632,"ま":-1687,"な":-2126,"た":-2016,"う":-2712,"お":892,"し":-1935,"い":-1550,"ら":-5271,"そ":429,"だ":-2260,"れ":-4518,"す":-1699,"ん":-4492,"あ":255,"ち":-2389,"ー":-2954,"き":-1830,"」":-6475,"も":-2930,"よ":-1377,"「":2346,"け":-3754,"見":1092,"ご":293,"や":-1377,"く":-3063,"思":1144,"み":-907,"大":654,"私":1972,"一":569,"人":514,"？":-5720,"さ":-1760,"[":3554,"行":434,"め":-2463,"ン":-2274,"』":-5072,"こ":-507,"！":-5229,"ッ":-2340,"，":-4881,"わ":-1719,"・":-1475,"じ":-2491,"京":392,"今":1470,"?":-4390,"ぐ":-1842,"せ":-1969,"え":-2262,"１":1027,"言":351,"（":2718,"『":982,"使":851,"時":454,"合":-1661,"食":294,"日":280,"べ":-3191,"何":717,"デ":615,"ル":-1129,"ろ":-3124,"…":-3150,"．":-3345,"ば":-2646,"空":1226,"自":699,"笑":-3433,"２":820,"リ":-1047,"つ":-1268,"［":1713,"場":401,"効":71,"広":493,"）":-4245,"煙":2026,"ず":-2065,"来":130,"帯":-1165,"]":-1443,"ゃ":-2623,"最":996,"多":1189,"ど":-885,"ね":-2484,"び":-1816,"綺":2459,"エ":271,"携":168,"手":154,"］":-1515,"良":87,"ゆ":-825,"間":-755,"ぁ":-1624,"タ":-298,"ぶ":-1703,"ょ":-2028,"ぎ":-1605,"ひ":541,"方":-465,"”":-1348,"特":1097,"ト":-346,"ス":-149,"０":-431,"〜":-1764,"的":-991,"青":798,"♪":-2039,"僕":1126,"書":572,"イ":-143,"☆":-1767,"用":-630,"能":-732,"カ":231,"ュ":-807,"ぼ":-972,"ざ":-1085,"無":336,"む":-1336,"フ":-334,"公":376,"不":696,"ぜ":-1481,"バ":308,"へ":-1023,"　":-1382,"制":794,"回":-1175,"本":-124,"小":747,"水":329,"ぞ":-1226,"ロ":-279,"入":129,"続":-656,"物":-311,"返":-364,"新":311,"二":611,"美":260,"ほ":-328,"ｏ":-633,"足":704,"少":273,"取":-531,"機":-118,"臭":1197,"誰":1040,"街":558,"３":435,"げ":-906,"友":102,"づ":-795,"換":-690,"ク":-240,"ド":-300,"夏":522,"話":371,"祭":558,"気":95,"姿":158,"系":259,"コ":64,"楽":372,"服":869,"東":710,"込":-604,"年":-375,"(":654,"ニ":-238,"高":107,"切":-376,"他":181,"★":-844,"真":-503,"【":585,"表":166,"ビ":-158,"グ":-141,"有":295,"４":-215,"聞":199,"父":403,"代":-114,"買":225,"全":87,"通":-66,"品":-202,"度":-229,"四":276,"Ｓ":-143,"森":-428,"狭":264,"情":-106,"彼":83,"動":-34,"甘":151,"頑":176,"オ":68,"鞍":112,"ム":-77,"参":98,"実":60,"声":85,"秋":127,"例":106,"＾":-122,"ジ":-8,"ミ":-33,"心":12,"券":-37,"住":8,"ふ":-16,"春":8,"修":4,"ぃ":-4},"UW5":{"。":-2134,"、":-1080,"な":-632,"っ":1246,"は":-1048,"に":-767,"で":-961,"き":1101,"と":-894,"す":-696,"る":514,"を":-806,"い":360,"え":727,"の":-889,"べ":1996,"ま":-98,"じ":744,"こ":125,"た":-31,"し":-331,"ん":946,"そ":-665,"れ":462,"か":195,"動":1439,"ラ":547,"・":-945,"あ":-394,"め":528,"帯":334,"つ":1095,"う":444,"日":575,"京":78,"さ":-303,"能":88,"ル":-699,"」":-1096,"が":-597,"力":339,"せ":-438,"ぼ":1438,"ト":-388,"ず":812,"わ":588,"り":187,"ン":-260,"く":352,"年":968,"だ":-485,"思":-359,"も":-205,"ち":522,"］":-422,"使":-1252,"器":-220,"ざ":335,"ろ":-67,"よ":-284,"て":220,"！":-311,"利":781,"上":-402,"ス":-271,"体":-1449,"．":-224,"水":-443,"ぎ":320,"当":628,"ら":181,"び":609,"む":810,"イ":124,"バ":-71,"電":-205,"大":-275,"[":-434,"的":-264,"作":365,"言":-236,"ュ":-257,"先":-797,"景":340,"寺":-278,"…":-209,"？":-240,"本":178,"葉":186,"一":-197,"々":237,"顔":-329,"グ":-120,"丈":333,"越":-763,"Ｎ":786,"へ":-282,"ャ":51,"ど":-9,"回":193,"デ":-192,"見":-57,"１":-114,"開":78,"２":-134,"行":-34,"面":34,"要":33,"ロ":25,"オ":-25,"目":-46,"定":12},"UW2":{"。":-1584,"の":-942,"、":-1540,"を":-2488,"に":-1161,"し":200,"か":-9,"と":-1218,"も":-961,"が":-837,"な":-420,"っ":127,"で":-1025,"ま":338,"れ":-90,"て":-939,"そ":-483,"お":-1202,"以":2491,"す":413,"だ":372,"一":1244,"全":1268,"さ":708,"く":-729,"う":-611,"少":606,"は":-1052,"い":-145,"手":1408,"ん":250,"」":209,"け":159,"こ":-30,"見":-308,"め":65,"特":868,"結":2129,"あ":-194,"食":261,"つ":-595,"毎":1534,"法":1473,"場":274,"ゆ":805,"わ":317,"ラ":-534,"同":511,"ほ":708,"関":1438,"る":-407,"味":500,"人":75,"良":243,"ひ":-2178,"多":560,"選":185,"や":-625,"水":732,"知":-961,"ど":-234,"イ":-161,"「":-347,"た":-274,"ぱ":267,"随":1550,"？":-621,"ご":-501,"容":1349,"ぜ":931,"サ":-568,"ー":216,"グ":-454,"取":-414,"目":-759,"み":-120,"裏":-14,"能":348,"パ":668,"り":-229,"０":115,"本":556,"我":-831,"境":-297,"１":180,"ば":-327,"２":-241,"ろ":-200,"ね":354,"デ":-497,"ぐ":-455,"メ":-40,"和":646,"，":-526,"ノ":495,"大":152,"ぶ":85,"］":-262,"シ":-433,"立":-473,"世":-338,"先":378,"ケ":-522,"き":-115,"級":771,"＾":102,"?":-408,"４":326,"安":-94,"甘":11,"バ":426,"々":206,"電":268,"３":-291,"ら":-70,"是":440,"ル":47,"格":548,"Ｐ":-648,"団":696,"言":-5,"新":-139,"［":-89,"三":429,"家":142,"…":239,"落":-546,"作":-19,"下":296,"最":225,"ジ":-135,"素":-443,"文":116,"許":538,"早":222,"車":84,"★":-399,"如":479,"]":-173,"昔":260,"直":295,"奇":205,"『":-228,"百":-157,"Ｈ":-144,"レ":-113,"次":-183,"生":87,"残":151,"敗":159,"５":-128,"買":-17,"案":141,"空":-34,"鹿":-135,"ド":42,"介":97,"ア":-29,"用":-25,"げ":8},"UW1":{"い":-138,"に":-390,"で":-289,"つ":315,"と":124,"の":67,"が":-210,"は":-176,"よ":87,"そ":183,"り":-106,"見":231,"て":146,"な":-212,"す":202,"う":103,"ん":204,"知":91,"た":-112,"携":-314,"か":-187,"始":733,"バ":394,"十":-269,"上":-140,"く":165,"水":173,"、":18,"［":-544,"タ":247,"プ":-787,"明":905,"ッ":426,"き":-8,"ス":-209,"イ":-459,"０":234,"大":276,"。":-26,"リ":339,"っ":198,"ち":243,"安":-460,"３":-303,"日":25,"．":-438,"ど":197,"こ":160,"る":-82,"や":-248,"話":-147,"メ":422,"ろ":336,"自":371,"効":642,"小":284,"オ":507,"れ":118,"長":668,"行":-36,"壊":-428,"時":-212,"え":-105,"間":281,"機":118,"新":159,"『":-555,"・":52,"作":114,"ャ":280,"！":68,"認":-245,"個":-228,"撮":-122,"何":169,"し":-22,"京":-106,"苦":-506,"」":-119,"取":106,"も":13,"右":202,"少":-110,"人":-65,"豊":252,"ざ":100,"進":156,"２":69,"ン":17,"内":-171,"ね":-51,"積":-93,"議":34,"基":-37,"ｏ":-12,"]":-25,"ニ":20,"ケ":-8,"を":-4,"生":-4,"ク":-4},"UW6":{"。":-308,"が":369,"の":138,"で":160,"さ":944,"な":226,"に":327,"を":154,"は":202,"し":463,"や":638,"う":237,"っ":486,"り":513,"ぱ":1094,"か":312,"も":109,"」":-190,"い":346,"み":702,"せ":-301,"空":972,"め":913,"と":34,"る":182,"お":-401,"つ":696,"グ":789,"け":-219,"ー":-162,"ど":60,"コ":192,"場":-573,"こ":119,"そ":54,"ん":349,"く":131,"ま":413,"タ":331,"ン":-343,"０":693,"的":366,"ス":27,"ク":-300,"れ":167,"電":358,"人":-95,"ろ":464,"気":563,"送":-1624,"よ":267,"付":53,"・":-200,"画":407,"パ":-559,"わ":268,"見":-162,"返":1149,"１":119,"地":530,"ュ":224,"水":898,"出":534,"思":-178,"：":586,"ば":40,"遊":-497,"ル":188,"供":-427,"込":474,"て":-65,"過":246,"デ":-202,"］":-115,"最":-248,"ぎ":604,"学":-426,"カ":194,"寺":325,"制":372,"言":-223,"シ":-177,"た":27,"来":-111,"ょ":-238,"自":216,"じ":116,"日":36,"亭":407,"ず":-131,"だ":-42,"方":-77,"家":-115,"ブ":29,"び":59,"ピ":33,"新":-4},"TW1":{"よいよ":3595,"もはや":2606,"またま":3831,"ありが":-2684,"という":412,"おって":3070,"で見る":-2977,"こんに":-455,"ような":1127,"んどん":1519,"が良い":786,"・・・":1415,"ていく":997,"いとこ":-808,"ふだん":2004,"ました":-1069,"できる":396,"かなり":1990,"だんど":-1554,"すきと":-3102,"甘えが":-1234,"やはり":2033,"その時":2086,"、それ":675,"ながら":1161,"ひとつ":1367,"とんど":763,"ない、":-1607,"なんと":-1121,"かなか":752,"でかけ":-656,"ことも":-358,"持って":-1039,"十分に":-364,"ょうど":827,"たまた":-714,"しかし":752,"っかり":783,"に来て":667,"ょっと":-325,"る」と":-946,"困った":693,"として":267,"くらい":189,"ていて":254,"かった":-96,"は一つ":-707,"もなく":113,"なって":-94,"そして":174,"レベル":366,"は正直":339,"くさん":213,"入れる":260,"ろいろ":177,"すごく":312,"。夕方":161,"おけば":147,"んでも":128,"まるで":85,"のうち":148,"にして":-46,"と思う":16,"ういう":20,"のバス":20,"。ただ":16},"BW2":{"とこ":-1757,"とい":180,"せく":6048,"ない":-3413,"てい":-1546,"とお":-2638,"です":-2940,"たと":680,"であ":-3442,"ので":-1978,"のみ":-3030,"いよ":-3030,"てお":-2172,"にも":-1394,"うご":1924,"でき":-2187,"、と":-1273,"でも":-1946,"など":-2282,"たま":-1297,"たい":-2164,"くな":-1776,"には":-791,"帯電":-1412,"でし":-1822,"くだ":-2195,"のが":-1144,"のだ":-1038,"うど":-1919,"てき":-2092,"もし":-920,"いと":-940,"てみ":-2185,"はじ":-2168,"のは":-1264,"本イ":2005,"の前":-1526,"いも":784,"い合":-1523,"いた":-1271,"うや":-1100,"いい":-928,"らな":-254,"てく":-1211,"いま":-851,"やす":-1370,"がち":-83,"らゆ":-1056,"ると":-596,"てあ":-2151,"て行":-2250,"した":-768,"人い":1504,"なく":-852,"もあ":-595,"のも":-925,"のか":-634,"のい":303,"徴エ":1381,"どこ":-794,"ても":-606,"ただ":-1376,"を返":-1669,"とも":-606,"とき":-767,"び上":1661,"なか":-495,"とか":-1075,"はい":-834,"のご":-1134,"」と":-433,"るよ":-228,"とめ":-460,"にし":-486,"すご":-996,"なあ":-1506,"でな":-1219,"いな":-407,"。笑":-1204,"くし":-714,"こし":365,"の１":-1747,"係な":620,"い日":416,"ども":-531,"では":-618,"し…":1799,"」で":936,"う映":394,"とと":-657,"いし":-713,"しい":-305,"かな":-357,"にな":-75,"はあ":-507,"がっ":-488,"もな":-16,"が観":-950,"てこ":-172,"、な":-323,"なぁ":-494,"かし":-379,"よい":-566,"はず":-582,"グと":780,"すも":529,"・・":-386,"いつ":-178,"らい":-353,"もつ":-361,"とは":-348,"気な":330,"でい":-203,"たち":-269,"日と":374,"日本":-309,"て欲":-466,"るな":-264,"りな":227,"の方":159,"がし":72,"うい":-216,"にぎ":-250,"もう":-171,"］私":-479,"中さ":322,"たし":-230,"るの":-108,"てや":-142,"そこ":-275,"にこ":-198,"たも":103,"て来":-232,"れた":-94,"ルや":137,"るし":-128,"中だ":114,"たな":-80,"るが":-80,"ぱな":67,"るか":-29,"、清":-33,"がの":29,"たよ":-20,"．９":-24},"BW3":{"こと":1175,"いう":790,"もの":3907,"いい":1123,"その":2329,"ちは":-1191,"この":2317,"まと":1846,"おで":1062,"とき":2382,"はじ":2407,"して":218,"うま":3341,"よう":-1314,"ちょ":2198,"これ":2270,"ある":-287,"なっ":-601,"でも":1755,"なる":316,"とい":-754,"受け":890,"上が":1264,"なん":292,"可能":95,"が、":1559,"そう":-1883,"とて":2483,"でき":917,"おり":-1380,"もら":2822,"かか":1930,"メー":450,"当日":2335,"たま":1011,"から":-1032,"で、":1140,"かけ":2176,"よく":1416,"さん":-2110,"ため":1069,"しま":-296,"ゆる":-896,"もう":2304,"とも":1246,"分か":1490,"かっ":-1165,"ます":-772,"です":-903,"すご":1542,"もん":1103,"より":-1170,"すぐ":1632,"機器":-1682,"した":907,"ない":481,"しい":-957,"ころ":-297,"が観":2221,"とっ":875,"まし":-943,"いて":-460,"あと":1228,"がん":1905,"・・":-1620,"さい":-807,"つな":1280,"とり":1101,"まぁ":1446,"いろ":404,"はま":1074,"しゃ":381,"つぶ":642,"なら":-409,"いか":663,"だけ":-754,"みた":-1184,"はず":770,"だろ":-1479,"うち":552,"わか":660,"デザ":565,"はる":721,"いま":563,"と思":-575,"にぎ":723,"なく":402,"始ま":217,"きま":-605,"さあ":662,"もと":1138,"まだ":610,"おす":397,"つい":573,"かも":-592,"あり":115,"日が":472,"すか":-409,"きる":-925,"ぼっ":-1028,"何で":454,"ええ":1084,"もつ":721,"たっ":576,"なか":235,"以上":-395,"こそ":-557,"出来":-628,"たい":-166,"とこ":408,"ルー":311,"みん":529,"まも":279,"ひと":380,"はし":709,"なさ":208,"どこ":399,"一に":-695,"ごと":-287,"しか":-210,"し、":-70,"アプ":55,"いら":361,"入れ":90,"入場":413,"なに":319,"んで":260,"行く":169,"とら":456,"もっ":336,"まで":-296,"そし":356,"つけ":355,"電話":-44,"ただ":293,"変え":271,"すき":240,"最近":148,"こん":-92,"通り":-261,"など":-117,"友人":108,"ませ":-117,"つき":394,"ぼれ":-380,"かき":293,"電車":82,"いた":-26,"みろ":115,"書い":132,"いる":55,"そく":-136,"使っ":72,"色は":110,"祭り":84,"だい":46,"あふ":84,"こだ":50,"しく":-63,"ほど":-33,"いつ":20},"BW1":{"から":1722,"しい":1439,"ない":1248,"のみ":2935,"んに":-1214,"れた":1317,"いう":530,"とか":1792,"まま":2275,"もは":-3656,"その":-1266,"こと":-1663,"るの":-1335,"よう":-711,"少し":1794,"」と":261,"ても":825,"のは":1264,"して":-150,"うな":592,"、真":4785,"たい":724,"んな":247,"たら":1203,"では":-294,"つな":-1587,"より":1697,"でも":881,"かも":-1721,"まも":-3453,"最近":1892,"この":-1192,"には":454,"んだ":781,"った":226,"たと":-1187,"。・":2850,"たの":-1057,"とが":-1312,"白い":1354,"かし":1573,"もう":1545,"くれ":2314,"が、":1142,"やく":1335,"とき":2050,"全部":695,"とこ":-63,"。」":2184,"おで":-3878,"は、":931,"まと":-1866,"にも":628,"んで":-494,"とで":1529,"なら":1187,"気に":-333,"もの":-627,"い、":-391,"ちが":-674,"こそ":1536,"ただ":1271,"思い":-1500,"晶の":2483,"もし":1384,"なぐ":1197,"同じ":1197,"のが":916,"けど":753,"あー":1779,"で、":433,"うに":-49,"がと":-955,"りゃ":1760,"まだ":776,"いと":-291,"の間":1507,"よく":582,"なぜ":1651,"てい":-500,"た．":1552,"神社":931,"した":325,"人気":1231,"だけ":600,"かけ":-34,"とう":147,"いで":-1082,"まり":470,"れて":-371,"りと":700,"青い":473,"くて":727,"、今":805,"れが":-562,"の後":977,"２、":-2026,"きた":487,"使い":-992,"普段":718,"きの":-962,"やら":986,"いの":-221,"と、":348,"的な":365,"るに":-612,"との":460,"買い":-753,"問い":-436,"ック":270,"いい":-393,"なく":334,"ので":225,"など":623,"取り":-456,"れる":60,"いも":-807,"べき":989,"ると":91,"か，":-1339,"ぶん":673,"効果":1280,"甘味":569,"ころ":485,"、と":308,"是非":377,"パサ":476,"０円":353,"ゃあ":661,"安に":-718,"らな":-591,"寺、":-1144,"かき":580,"めて":147,"分け":593,"言い":-567,"お店":690,"現在":554,"すい":112,"か、":-371,"世の":-645,"うや":-287,"で…":831,"の上":743,"＾＾":408,"だし":582,"わけ":398,"てる":202,"うか":240,"っと":-33,"えば":240,"める":-175,"ろう":-374,"いた":151,"は頭":928,"ｏｒ":446,"待ち":-469,"ため":514,"さん":64,"絶対":443,"ぱり":286,"ねー":307,"て、":9,"知る":-254,"んて":156,"舞う":328,"こう":-168,"うえ":425,"のも":124,"だん":128,"じて":203,"りは":-290,"とは":-110,"リー":157,"４日":102,"とも":-76,"ここ":100,"すが":-69,"とい":-78,"いし":148,"本語":178,"ては":-102,"すの":-60,"人、":-214,"ほぼ":149,"使う":89,"せん":59,"大変":8,"法的":67,"す☆":58,"空き":-54,"持て":-79,"なー":37,"以上":29,"しか":4,"に水":25,"離宮":29,"たり":4},"TW2":{"いとこ":-3730,"してお":-1405,"ではな":-1947,"気に入":-3717,"ちがう":-1802,"分にあ":-2591,"そのま":-1448,"うにな":-974,"んでい":-1891,"そもそ":-1950,"ではあ":-1780,"どんど":-903,"とがあ":-1081,"れはそ":-1417,"女の子":-1717,"国人が":989,"っての":1292,"らと言":-1185,"ようや":-538,"からな":-624,"てもい":-1357,"でもあ":-1421,"からし":556,"ような":-503,"んなん":1024,"ともあ":-687,"でもな":-1053,"その後":-629,"まるで":-281,"れるこ":266,"それ以":261,"とにな":-327,"ものす":-823,"したこ":-283,"っとい":-404,"ってこ":-220,"しかな":308,"のに対":-259,"とがで":-200,"るにつ":-106,"んなこ":-87,"という":-25,"かもし":-8,"いい感":-8},"TW4":{"ところ":3232,"ありが":2595,"もはや":3296,"どのよ":3827,"ような":-1762,"ようや":3170,"ある。":-583,"くらい":1946,"可能性":2270,"いよい":1454,"ことが":-1192,"しかし":2054,"プログ":1692,"が、そ":1483,"ちがう":2357,"とおり":2028,"した。":-1506,"かなり":2324,"うどん":2043,"あるい":-3230,"いっぱ":1905,"ことに":-1257,"ありま":-963,"だって":1379,"で、そ":1288,"しゃべ":1977,"ことで":319,"してお":1218,"できた":1495,"いろい":1055,"ように":-955,"ことも":-948,"わけで":-622,"おりに":-451,"ない。":218,"ちなみ":1830,"なんと":1084,"やって":185,"だった":-1408,"そうで":-738,"ってこ":412,"とこが":1173,"でも、":468,"して人":-1146,"の京都":548,"なんて":-477,"いかな":448,"こと。":569,"いって":-314,"おりま":1584,"これは":1089,"かけら":645,"いけな":-428,"ことを":358,"なんか":476,"はじま":343,"そのま":373,"ひとつ":84,"すると":228,"勝手に":850,"ことは":-267,"ないと":261,"いえば":439,"でもま":632,"しない":213,"どんど":429,"かった":-228,"とこ取":-230,"メール":47,"いまし":-289,"いくさ":-203,"ようで":-254,"はまっ":90,"なかな":111,"いくら":132,"います":-119,"さらに":42,"あるも":46,"京都に":25,"あたり":-4},"TW3":{"という":530,"のよう":-1023,"ている":-2512,"、そし":-3799,"のまま":-494,"ること":-336,"てしま":-1783,"すこと":899,"らない":-1576,"の本は":-1332,"になっ":-458,"ーした":1308,"とした":-1399,"と言っ":-1426,"のよい":597,"である":-911,"」って":906,"はまっ":-1300,"てほし":-994,"ばいい":-1221,"はない":-473,"と同時":-1341,"として":91,"であっ":-1154,"ところ":-834,"ていう":514,"、また":-825,"ておき":-625,"る方は":-700,"ういう":-635,"ととも":-485,"はそれ":-601,"といっ":-29,"にでも":-638,"てない":-314,"くして":-289,"たこと":-68,"といい":-466,"のこの":-157,"があっ":109,"，それ":-71,"にする":-20,"になる":-8}};
+// BudouX (MIT License, Copyright 2021 Google LLC) - minimal inline parser for Japanese phrase-safe line breaks
+class BudouXParser{constructor(model){this.model=new Map(Object.entries(model).map(([k,v])=>[k,new Map(Object.entries(v))]));this.baseScore=-0.5*[...this.model.values()].flatMap(g=>[...g.values()]).reduce((a,b)=>a+b,0);}
+ parseBoundaries(sentence){const result=[];const g=k=>this.model.get(k);const uw1=g('UW1'),uw2=g('UW2'),uw3=g('UW3'),uw4=g('UW4'),uw5=g('UW5'),uw6=g('UW6'),bw1=g('BW1'),bw2=g('BW2'),bw3=g('BW3'),tw1=g('TW1'),tw2=g('TW2'),tw3=g('TW3'),tw4=g('TW4');
+  for(let i=1;i<sentence.length;i++){let score=this.baseScore;
+   score+=(uw1&&uw1.get(sentence.substring(i-3,i-2)))||0;score+=(uw2&&uw2.get(sentence.substring(i-2,i-1)))||0;score+=(uw3&&uw3.get(sentence.substring(i-1,i)))||0;score+=(uw4&&uw4.get(sentence.substring(i,i+1)))||0;score+=(uw5&&uw5.get(sentence.substring(i+1,i+2)))||0;score+=(uw6&&uw6.get(sentence.substring(i+2,i+3)))||0;
+   score+=(bw1&&bw1.get(sentence.substring(i-2,i)))||0;score+=(bw2&&bw2.get(sentence.substring(i-1,i+1)))||0;score+=(bw3&&bw3.get(sentence.substring(i,i+2)))||0;
+   score+=(tw1&&tw1.get(sentence.substring(i-3,i)))||0;score+=(tw2&&tw2.get(sentence.substring(i-2,i+1)))||0;score+=(tw3&&tw3.get(sentence.substring(i-1,i+2)))||0;score+=(tw4&&tw4.get(sentence.substring(i,i+3)))||0;
+   if(score>0)result.push(i);}
+  return result;}}
+const budouxParser=new BudouXParser(BUDOUX_JA_MODEL);
+const ASCII_WORD=/[A-Za-z0-9]/;
+// 禁則: 開き括弧の直後・閉じ括弧や句読点の直前の折り返し位置は、括弧の前・句読点の後へずらす（このプロジェクトで追加）
+const NO_BREAK_AFTER=/[「『（【［〈《〔｛(\[{]/;
+const NO_BREAK_BEFORE=/[」』）】］〉》〕｝)\]}、。，．・：；！？!?ー〜…]/;
+// 対象セレクタ。変更する場合はCSS側の対応セレクタも揃えること
+const BUDOUX_WRAP_SELECTOR='h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,blockquote,figcaption';
+function insertPhraseBreaks(root){
+ (root||document).querySelectorAll(BUDOUX_WRAP_SELECTOR).forEach(elm=>{
+  Array.from(elm.childNodes).forEach(node=>{
+   if(node.nodeType!==Node.TEXT_NODE||!node.textContent)return;
+   const text=node.textContent;
+   const boundaries=[...new Set(budouxParser.parseBoundaries(text).map(b=>{while(b>1&&NO_BREAK_AFTER.test(text[b-1]))b--;while(b<text.length-1&&NO_BREAK_BEFORE.test(text[b]))b++;return b;}))].filter(b=>b>0&&b<text.length&&!(ASCII_WORD.test(text[b-1])&&ASCII_WORD.test(text[b]))).sort((a,b)=>a-b);
+   if(!boundaries.length)return;
+   const frag=document.createDocumentFragment();let start=0;
+   boundaries.forEach(b=>{frag.append(text.slice(start,b),document.createElement('wbr'));start=b;});
+   frag.append(text.slice(start));
+   node.replaceWith(frag);
+  });
+ });
+}
+window.insertPhraseBreaks=insertPhraseBreaks;
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',()=>insertPhraseBreaks());
+}else{
+ insertPhraseBreaks();
+}
+})();
+</script>
 </body>
 </html>
