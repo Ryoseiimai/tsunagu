@@ -58,3 +58,13 @@
 - 実際に佐藤将大さんへ送る文面の下書き（本人が最終送信ボタンを押す形）
 - iOS版のv2対応
 - 配布リンクの短縮対応
+
+## 更新 2026-09-23 05:30（見た目の作り直し＋iOS配布）
+
+- 本人評価「見た目がダサい」→ **DESIGN-v3.md（Apple HIG準拠）が見た目の正本**。絵文字・灰色塗り箱・下線リンクを廃止、白黒＋緑1色、21st.devの作法（drawer/segmented/toast/押し込み/confetti）を素のHTMLに移植、記憶に残る要素は「つなぐ線」1つだけ
+- Web版 v3 公開済み（index/manual/privacy.html/install.html）。privacy.html は TestFlight の審査情報に登録済み
+- iOS版を v2＋HIG で作り直し済み（SwiftUI標準部品・つなぐ線・Debug限定の状態注入 DebugSeed.swift）。version 1.0 build 2
+- App Store Connect: 名前「つなぐ - 友達で仕事紹介」（「つなぐ」は使用済み）、Apple ID 6814945848、SKU tsunagu-ios-001
+- TestFlight: 外部グループ「友達」、公開リンク https://testflight.apple.com/join/4VXvAgzX （上限100人）。build 2 を 05:23 に外部テスト審査へ提出（承認されるまでリンクは使えない）
+- 配布の道具: `ios/release/`（asc.py＝TestFlight操作、upload.sh＝アーカイブ→アップロード）。電話番号・Issuer ID を含むため git 追跡外。次のビルドは project.yml の CURRENT_PROJECT_VERSION を上げて `bash ios/release/upload.sh <iosディレクトリ>` → `python3 asc.py wait-build N && python3 asc.py add N`（同じバージョンの2本目以降は審査が省かれることが多い）
+- 残り: TestFlight 承認の確認 → 佐藤将大さんへの案内（下書きは本人が送る）／TestFlight ビルドは90日で期限切れ／App Store 公開は別途判断
