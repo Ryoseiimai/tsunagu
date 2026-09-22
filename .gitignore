@@ -5,3 +5,4 @@ shots/
 .DS_Store
 .wrangler/
 node_modules/
+ios/codex.log
