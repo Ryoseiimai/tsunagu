@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06C755">
+<title>つなぐ - 使い方</title>
+<!--
+  試作マニュアルにつき、以下を意図的に省略しています。
+  - 動画・音声での説明: 文字と図のみ。本格対応は短い操作動画を埋め込む入口を作る。
+  - 検索機能: セクションが3つだけなので省略。増えたら検索ボックスを足す入口。
+-->
+<style>
+  :root{
+    --accent:#06C755;
+    --bg:#ffffff;
+    --fg:#1a1a1a;
+    --sub:#6b6b6b;
+    --line:#e6e6e6;
+    --card:#f7f7f7;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#eeeeee;
+    color:var(--fg);
+    font-size:16px;
+    line-height:1.7;
+  }
+  #app{
+    max-width:720px;
+    margin:0 auto;
+    min-height:100vh;
+    background:var(--bg);
+    padding-bottom:40px;
+  }
+  header.app-header{
+    padding:22px 20px 18px;
+    border-bottom:1px solid var(--line);
+    background:var(--bg);
+    position:sticky;
+    top:0;
+    z-index:10;
+    text-align:center;
+  }
+  header.app-header h1{
+    margin:0;
+    font-size:26px;
+    font-weight:700;
+  }
+  header.app-header p{
+    margin:6px 0 0;
+    font-size:14px;
+    color:var(--sub);
+  }
+  main{
+    padding:20px;
+  }
+  section{
+    margin-bottom:36px;
+  }
+  h2{
+    font-size:24px;
+    margin:0 0 12px;
+    font-weight:700;
+  }
+  h3{
+    font-size:18px;
+    margin:0 0 8px;
+  }
+  p{
+    margin:0 0 14px;
+    font-size:16px;
+  }
+  .diagram{
+    width:100%;
+    max-width:560px;
+    display:block;
+    margin:0 auto 8px;
+  }
+  .diagram-caption{
+    text-align:center;
+    font-size:14px;
+    color:var(--sub);
+    margin:0 0 24px;
+  }
+  .role-nav{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin:20px 0 32px;
+  }
+  .role-btn{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:16px;
+    min-height:64px;
+    text-decoration:none;
+    color:var(--fg);
+    font-weight:700;
+    font-size:16px;
+  }
+  .role-btn .emoji{
+    font-size:26px;
+    flex-shrink:0;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+    margin-bottom:18px;
+  }
+  .step{
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+    margin-bottom:16px;
+  }
+  .step .num{
+    flex-shrink:0;
+    width:32px;
+    height:32px;
+    border-radius:50%;
+    background:var(--accent);
+    color:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    font-size:15px;
+  }
+  .step p{
+    margin:0;
+    font-size:16px;
+  }
+  .step p b{
+    display:block;
+    font-size:17px;
+    margin-bottom:2px;
+  }
+  .back-link{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:44px;
+    padding:0 18px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--fg);
+    text-decoration:none;
+    font-size:14px;
+    font-weight:700;
+  }
+  .trouble{
+    background:var(--card);
+    border-radius:14px;
+    padding:18px;
+    font-size:15px;
+  }
+  .trouble p{
+    margin:0 0 8px;
+    font-size:15px;
+  }
+  .trouble p:last-child{margin-bottom:0;}
+  a{color:var(--fg);}
+  footer{
+    text-align:center;
+    padding:20px;
+    font-size:13px;
+    color:var(--sub);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header class="app-header">
+    <h1>つなぐ の使い方</h1>
+    <p>仕事探しを、友達の紹介で。</p>
+  </header>
+
+  <main>
+
+    <section id="top">
+      <p>「つなぐ」には、3人の登場人物がいます。この図のとおりに、友達の輪でつながります。</p>
+
+      <svg class="diagram" viewBox="0 0 560 180" role="img" aria-label="支援する人から紹介する人へ、紹介する人から仕事を探している人へ、矢印でつながる図">
+        <!-- 支援する人 -->
+        <g>
+          <rect x="10" y="60" width="150" height="70" rx="14" fill="#f7f7f7" stroke="#e6e6e6"/>
+          <text x="85" y="88" text-anchor="middle" font-size="26">💼</text>
+          <text x="85" y="112" text-anchor="middle" font-size="14" fill="#1a1a1a" font-weight="700">支援する人</text>
+        </g>
+        <!-- 矢印1 -->
+        <line x1="165" y1="95" x2="200" y2="95" stroke="#06C755" stroke-width="3"/>
+        <polygon points="200,88 214,95 200,102" fill="#06C755"/>
+        <!-- 紹介する人 -->
+        <g>
+          <rect x="215" y="55" width="150" height="80" rx="14" fill="#f7f7f7" stroke="#06C755" stroke-width="2"/>
+          <text x="290" y="86" text-anchor="middle" font-size="26">🤝</text>
+          <text x="290" y="110" text-anchor="middle" font-size="14" fill="#1a1a1a" font-weight="700">紹介する人</text>
+          <text x="290" y="126" text-anchor="middle" font-size="11" fill="#6b6b6b">（主役）</text>
+        </g>
+        <!-- 矢印2 -->
+        <line x1="370" y1="95" x2="405" y2="95" stroke="#06C755" stroke-width="3"/>
+        <polygon points="405,88 419,95 405,102" fill="#06C755"/>
+        <!-- 仕事を探している人 -->
+        <g>
+          <rect x="420" y="60" width="140" height="70" rx="14" fill="#f7f7f7" stroke="#e6e6e6"/>
+          <text x="490" y="88" text-anchor="middle" font-size="26">🙂</text>
+          <text x="490" y="108" text-anchor="middle" font-size="13" fill="#1a1a1a" font-weight="700">仕事を探して</text>
+          <text x="490" y="124" text-anchor="middle" font-size="13" fill="#1a1a1a" font-weight="700">いる人</text>
+        </g>
+      </svg>
+      <p class="diagram-caption">支援する人がカードを作り → 紹介する人が友達に送り → 仕事を探している人がリンクを開いて相談します。</p>
+
+      <p>自分がどれに当てはまるか、下から選ぶと、そこだけ読めば分かるようになっています。</p>
+
+      <div class="role-nav">
+        <a class="role-btn" href="#introducer"><span class="emoji">🤝</span>友達を紹介したい人へ</a>
+        <a class="role-btn" href="#supporter"><span class="emoji">💼</span>仕事探しを手伝っている人へ</a>
+        <a class="role-btn" href="#seeker"><span class="emoji">🙂</span>仕事を探している人へ</a>
+      </div>
+    </section>
+
+    <section id="introducer">
+      <h2>🤝 友達を紹介したい人へ</h2>
+      <p>「あいつ仕事探してたな」と思ったときに使います。やることは3つだけです。</p>
+
+      <div class="card">
+        <div class="step">
+          <div class="num">1</div>
+          <p><b>紹介できる人を見る</b>ホームに、相談に乗ってくれる人のカードが並びます。まだ誰もいないときは、誘い文をコピーして知り合いに送ると、カードを作ってもらえます。</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <p><b>「この人を紹介する」を押す</b>友達の名前を入れると（入れなくても大丈夫です）、送る文面ができあがります。気になるところは書き換えられます。</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <p><b>LINEで送る</b>緑のボタンを押すと、そのままLINEで友達に送れます。送ったあとは一覧に残るので、あとで「決まった！」になったか見に来られます。</p>
+        </div>
+      </div>
+
+      <p>友達が相談を始めると、一覧の表示が「相談してるみたい」に変わります。決まったら「決まった！」でお祝いの表示になります。</p>
+
+      <a class="back-link" href="index.html">← アプリに戻る</a>
+    </section>
+
+    <section id="supporter">
+      <h2>💼 仕事探しを手伝っている人へ</h2>
+      <p>相談に乗る自分のカードを作って、紹介してくれる人に配ります。やることは3つだけです。</p>
+
+      <div class="card">
+        <div class="step">
+          <div class="num">1</div>
+          <p><b>自分のカードを作る</b>名前・得意分野・対応地域・一言・LINEのリンクを入れます。これが、紹介された人に届く見た目そのものです。</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <p><b>「紹介してくれる人に配る」を押す</b>自分のカードが入ったリンクができます。LINEで送るか、コピーして貼り付けられます。</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <p><b>相談を待つ</b>紹介されてきた人がホームの一覧に増えていきます。まだ誰もいないときは「まだいません」と出るだけなので、心配いりません。</p>
+        </div>
+      </div>
+
+      <a class="back-link" href="index.html">← アプリに戻る</a>
+    </section>
+
+    <section id="seeker">
+      <h2>🙂 仕事を探している人へ</h2>
+      <p>アプリを入れる必要はありません。送られてきたリンクを開くだけです。やることは3つだけです。</p>
+
+      <div class="card">
+        <div class="step">
+          <div class="num">1</div>
+          <p><b>送られてきたリンクを開く</b>友達が選んでくれた、相談に乗ってくれる人のカードが出てきます。誰の紹介かも分かるようになっています。</p>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <p><b>「LINEで相談する」を押す</b>そのままLINEで話しかけられます。知り合いからの紹介なので、身構えなくて大丈夫です。</p>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <p><b>決まったら教えてあげる</b>仕事が決まったら、画面の下にある「決まった！を送る」を押すと、紹介してくれた友達に伝わります。</p>
+        </div>
+      </div>
+
+      <a class="back-link" href="index.html">← アプリに戻る</a>
+    </section>
+
+    <section id="trouble">
+      <h2>うまくいかないとき</h2>
+      <div class="trouble">
+        <p>リンクを開いても何も出ないときは、リンクが途中で切れていないか確認すると直ることが多いです。</p>
+        <p>LINEで送るボタンが反応しないときは、下にある「コピー」から文面をコピーして、LINEに貼り付けると送れます。</p>
+        <p>それでも直らないときは、紹介してくれた友達か、カードを作った人にもう一度リンクを送ってもらうと、たいてい解決します。</p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>つなぐ</footer>
+
+</div>
+</body>
+</html>

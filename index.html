@@ -10,8 +10,13 @@
 <!--
   試作プロトタイプにつき、以下を意図的に省略しています。
   - 本物のプッシュ通知: 「決まった！」を押しても実際には誰にも通知が飛ばず、画面内トーストのみ。本格対応はサーバー側でFCM/LINE Notify等を叩く入口を作る。
-  - サーバー保存: 全データはブラウザのlocalStorageのみ。端末を変えると消える。本格対応はAPIサーバー+DB(例: Firestore)に置き換える。
+  - サーバー保存・端末間同期: 全データはブラウザのlocalStorageのみ。端末を変えると消え、紹介した人・支援者・求職者の3者間で状態が自動同期しない
+    （相手の操作で状態が変わるのは同じ端末で試したときだけ）。本格対応はAPIサーバー+DB(例: Firestore)に置き換える。
   - 認証: 誰でも「自分のカードを作る」ができ、本人確認なし。本格対応はLINEログイン等のOAuthで支援者を認証する。
+  - 紹介者名(&by=)の発行: 紹介する人自身の名前を入力する導線が無いため、リンクに&by=を載せる処理は未実装（受け取り側のデコードのみ実装済み）。
+    本格対応は紹介する人のプロフィール入力欄を追加し、リンク生成時にencodeTextParamで載せる。
+  - 「紹介されてきた人」一覧: 支援する人が自分のカードを配ったあと、実際に別端末で紹介が発生してもこの端末には届かない。
+    今は同じ端末内でmyCardが紹介リストに入っている場合のみ表示できる。本格対応はサーバー側で紹介レコードを支援者IDに紐付けて配信する。
 -->
 <style>
   :root{
@@ -61,10 +66,29 @@
   main{
     flex:1;
     padding:16px;
-    padding-bottom:90px;
+    padding-bottom:40px;
   }
-  .tab-section{display:none;}
-  .tab-section.active{display:block;}
+  .view{display:none;}
+  .view.active{display:block;}
+  .view-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .view-head .help-link{
+    font-size:20px;
+    text-decoration:none;
+    color:var(--sub);
+    border:1px solid var(--line);
+    border-radius:50%;
+    width:30px;
+    height:30px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
   .card{
     background:var(--card);
     border:1px solid var(--line);
@@ -122,8 +146,8 @@
     font-weight:600;
   }
   .btn-small{
-    height:36px;
-    font-size:12px;
+    height:40px;
+    font-size:13px;
     padding:0 10px;
   }
   .btn-row{
@@ -165,38 +189,17 @@
     border-top:1px solid var(--line);
     margin:20px 0;
   }
-  nav.tabbar{
-    position:fixed;
-    left:50%;
-    transform:translateX(-50%);
-    bottom:0;
-    width:100%;
-    max-width:430px;
-    background:#fff;
-    border-top:1px solid var(--line);
-    display:flex;
-    z-index:20;
-  }
-  nav.tabbar button{
-    flex:1;
-    background:none;
-    border:none;
-    padding:10px 0 8px;
-    font-size:12px;
-    color:var(--sub);
-    cursor:pointer;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:4px;
-  }
-  nav.tabbar button .icon{font-size:20px;}
-  nav.tabbar button.active{color:var(--accent);font-weight:700;}
   .empty{
     text-align:center;
     color:var(--sub);
-    padding:30px 10px;
+    padding:24px 10px;
     font-size:13px;
+  }
+  .empty .hint-actions{
+    margin-top:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
   }
   .generated-box{
     background:#fff;
@@ -213,11 +216,23 @@
     padding:10px 12px;
     margin-bottom:8px;
     font-size:13px;
+    background:#fff;
+  }
+  .record-item.celebrate{
+    background:#eafff1;
+    border-color:var(--accent);
   }
   .record-item .top{
     display:flex;
     justify-content:space-between;
     align-items:center;
+    gap:8px;
+  }
+  .record-item .celebrate-msg{
+    color:var(--accent);
+    font-weight:700;
+    margin-top:6px;
+    font-size:13px;
   }
   .status-badge{
     display:inline-block;
@@ -227,17 +242,18 @@
     font-weight:700;
     background:var(--card);
     border:1px solid var(--line);
+    white-space:nowrap;
   }
   .status-badge.done{background:var(--accent);color:#fff;border-color:var(--accent);}
   .status-select{
     margin-top:8px;
-    height:34px;
+    height:38px;
     font-size:12px;
   }
   .toast{
     position:fixed;
     left:50%;
-    bottom:80px;
+    bottom:30px;
     transform:translateX(-50%);
     background:#1a1a1a;
     color:#fff;
@@ -256,14 +272,16 @@
     margin-top:24px;
     text-align:center;
   }
-  .footer-settings button{
+  .footer-settings button, .link-muted{
     background:none;
     border:none;
     color:var(--sub);
-    font-size:11px;
+    font-size:12px;
     text-decoration:underline;
     cursor:pointer;
+    font-family:inherit;
   }
+  a.link-muted{display:inline-block;}
   .hint{
     font-size:12px;
     color:var(--sub);
@@ -277,6 +295,60 @@
     margin:6px 0 4px;
     font-size:20px;
   }
+  /* 役割選択 */
+  .role-intro{
+    text-align:center;
+    padding:10px 8px 22px;
+  }
+  .role-intro p{margin:6px 0 0;color:var(--sub);}
+  .role-intro .lead{
+    margin-top:20px;
+    font-weight:700;
+    color:var(--fg);
+    font-size:15px;
+  }
+  .role-card{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:4px;
+    width:100%;
+    min-height:120px;
+    text-align:left;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px 18px;
+    margin-bottom:14px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .role-card:active{background:#eee;}
+  .role-card .role-emoji{font-size:26px;}
+  .role-card .role-title{font-size:16px;font-weight:700;margin-top:4px;}
+  .role-card .role-desc{font-size:13px;color:var(--sub);}
+  /* トーン切替 */
+  .tone-row{
+    display:flex;
+    gap:8px;
+    margin:8px 0 4px;
+  }
+  .tone-btn{
+    flex:1;
+    height:38px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--sub);
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .tone-btn.active{
+    background:var(--accent);
+    color:#fff;
+    border-color:var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -287,73 +359,151 @@
   </header>
 
   <main>
-    <!-- 支援者タブ -->
-    <section id="tab-supporters" class="tab-section">
-      <div class="section-title">支援者一覧</div>
-      <div id="supporter-list"></div>
-      <button class="btn btn-secondary" id="btn-open-form">＋ 自分のカードを作る</button>
 
-      <div class="form-box" id="supporter-form" style="display:none;">
-        <div class="section-title">カードを作る</div>
-        <label for="f-name">名前</label>
-        <input type="text" id="f-name" placeholder="例: 山田 太郎">
-        <label for="f-skill">得意分野</label>
-        <input type="text" id="f-skill" placeholder="例: 20代の転職・未経験IT">
-        <label for="f-area">対応地域</label>
-        <input type="text" id="f-area" placeholder="例: 全国・オンライン">
-        <label for="f-comment">一言</label>
-        <textarea id="f-comment" placeholder="例: まず話を聞くところから"></textarea>
-        <label for="f-line">LINE連絡先URL</label>
-        <input type="url" id="f-line" placeholder="https://line.me/ti/p/xxxx">
-        <div class="btn-row">
-          <button class="btn btn-secondary" id="btn-cancel-form">キャンセル</button>
-          <button class="btn btn-primary" id="btn-save-form">保存</button>
-        </div>
+    <!-- 役割選択 -->
+    <section id="view-role" class="view">
+      <div class="role-intro">
+        <p>はじめまして。</p>
+        <p class="lead">どちらで使いますか？</p>
+      </div>
+      <button class="role-card" id="role-refer">
+        <div class="role-emoji">🤝</div>
+        <div class="role-title">友達を紹介したい</div>
+        <div class="role-desc">仕事を探してる友達を、相談できる人に繋ぐ</div>
+      </button>
+      <button class="role-card" id="role-support">
+        <div class="role-emoji">💼</div>
+        <div class="role-title">仕事探しを手伝っている</div>
+        <div class="role-desc">自分のカードを作って、紹介してもらう</div>
+      </button>
+      <div style="text-align:center;margin-top:10px;">
+        <a class="link-muted" href="manual.html">使い方を見る</a>
       </div>
     </section>
 
-    <!-- 紹介するタブ -->
-    <section id="tab-refer" class="tab-section">
-      <div class="section-title">友達を紹介する</div>
-      <label for="refer-select">支援者を選ぶ</label>
-      <select id="refer-select"></select>
-      <button class="btn btn-primary" id="btn-generate" style="margin-top:12px;">紹介文をつくる</button>
+    <!-- ?add= 確認画面 -->
+    <section id="view-add-confirm" class="view">
+      <div class="card" style="text-align:center;">
+        <div class="meta">支援者カードが届きました</div>
+        <h2 id="add-confirm-name" style="margin:8px 0 4px;font-size:19px;"></h2>
+        <div class="meta" id="add-confirm-skill"></div>
+        <div class="meta" id="add-confirm-area"></div>
+        <div class="comment" id="add-confirm-comment"></div>
+        <p style="margin-top:14px;font-weight:700;">この人をあなたの紹介リストに追加しますか？</p>
+        <button class="btn btn-primary" id="btn-add-confirm-yes">紹介リストに追加する</button>
+        <button class="btn btn-ghost" id="btn-add-confirm-no" style="margin-top:8px;width:100%;">今は追加しない</button>
+      </div>
+    </section>
 
-      <div id="refer-generated" style="display:none;">
-        <div class="generated-box" id="refer-text"></div>
-        <div class="btn-row">
-          <button class="btn btn-secondary" id="btn-copy">コピー</button>
-          <button class="btn btn-primary" id="btn-line-share">LINEで送る</button>
+    <!-- 紹介する人：ホーム -->
+    <section id="view-refer-home" class="view">
+      <div class="view-head">
+        <div class="section-title" style="margin:0;">紹介できる人</div>
+        <a class="help-link" href="manual.html" title="使い方を見る">?</a>
+      </div>
+      <div id="refer-supporter-list"></div>
+      <div class="empty" id="refer-empty" style="display:none;">
+        まだ紹介できる人がいません<br><br>
+        仕事探しを手伝っている知り合いに、<br>カードを作ってもらってください。
+        <div class="hint-actions">
+          <button class="btn btn-secondary btn-small" id="btn-invite-copy">誘い文をコピー</button>
+          <button class="btn btn-ghost" id="btn-try-sample">見本で試す</button>
         </div>
       </div>
 
       <hr class="divider">
-      <div class="section-title">紹介の記録</div>
+      <div class="section-title">紹介したあと</div>
       <div id="referral-records"></div>
+
+      <div class="footer-settings">
+        <button class="btn-change-role">役割を変える</button>
+        &nbsp;・&nbsp;
+        <button id="btn-reset">データ全消去</button>
+      </div>
     </section>
 
-    <!-- 相談するタブ -->
-    <section id="tab-consult" class="tab-section">
-      <div class="section-title">支援者に相談する</div>
+    <!-- 紹介する人：紹介1画面 -->
+    <section id="view-refer-detail" class="view">
+      <div class="view-head">
+        <button class="link-muted" id="btn-refer-back" style="font-size:13px;">← 戻る</button>
+      </div>
+      <div class="section-title" id="refer-detail-name">紹介する</div>
+
+      <label for="f-friend-name">友達の名前（入れなくてもOK）</label>
+      <input type="text" id="f-friend-name" placeholder="例: たかし">
+
+      <label for="refer-detail-text">送る文面（編集できます）</label>
+      <textarea id="refer-detail-text" rows="6"></textarea>
+
+      <div class="tone-row">
+        <button class="tone-btn active" data-tone="casual">カジュアル</button>
+        <button class="tone-btn" data-tone="polite">ていねい</button>
+      </div>
+
+      <button class="btn btn-primary" id="btn-refer-line" style="margin-top:14px;background:#06C755;">LINEで送る</button>
+      <div class="btn-row">
+        <button class="btn btn-secondary btn-small" id="btn-refer-copy">コピー</button>
+        <button class="btn btn-secondary btn-small" id="btn-refer-share" style="display:none;">他のアプリで送る</button>
+      </div>
+    </section>
+
+    <!-- 支援する人：ホーム -->
+    <section id="view-support-home" class="view">
+      <div class="view-head">
+        <div class="section-title" style="margin:0;">自分のカード</div>
+        <a class="help-link" href="manual.html" title="使い方を見る">?</a>
+      </div>
+      <div id="mycard-preview"></div>
+      <button class="btn btn-secondary" id="btn-open-mycard-form">カードを編集する</button>
+
+      <div class="form-box" id="mycard-form" style="display:none;">
+        <div class="section-title">カードを作る</div>
+        <label for="mc-name">名前</label>
+        <input type="text" id="mc-name" placeholder="例: 山田 太郎">
+        <label for="mc-skill">得意分野</label>
+        <input type="text" id="mc-skill" placeholder="例: 20代の転職・未経験IT">
+        <label for="mc-area">対応地域</label>
+        <input type="text" id="mc-area" placeholder="例: 全国・オンライン">
+        <label for="mc-comment">一言</label>
+        <textarea id="mc-comment" placeholder="例: まず話を聞くところから"></textarea>
+        <label for="mc-line">LINE連絡先URL</label>
+        <input type="url" id="mc-line" placeholder="https://line.me/ti/p/xxxx">
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="btn-cancel-mycard">キャンセル</button>
+          <button class="btn btn-primary" id="btn-save-mycard">保存</button>
+        </div>
+      </div>
+
+      <div id="mycard-distribute" style="display:none;">
+        <hr class="divider">
+        <div class="section-title">紹介してくれる人に配る</div>
+        <button class="btn btn-primary" id="btn-distribute">配布リンクをつくる</button>
+        <div id="distribute-generated" style="display:none;">
+          <div class="generated-box" id="distribute-text"></div>
+          <div class="btn-row">
+            <button class="btn btn-secondary btn-small" id="btn-distribute-copy">コピー</button>
+            <button class="btn btn-primary btn-small" id="btn-distribute-line">LINEで送る</button>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-title">紹介されてきた人</div>
+      <div id="received-list"></div>
+
+      <div class="footer-settings">
+        <button class="btn-change-role">役割を変える</button>
+        &nbsp;・&nbsp;
+        <button id="btn-reset-2">データ全消去</button>
+      </div>
+    </section>
+
+    <!-- 仕事を探している人（リンクで来た人） -->
+    <section id="view-consult" class="view">
       <div id="consult-area"></div>
     </section>
 
-    <div class="footer-settings">
-      <button id="btn-reset">データ全消去</button>
-    </div>
   </main>
-
-  <nav class="tabbar">
-    <button data-tab="tab-supporters" class="tabbtn active">
-      <span class="icon">👥</span><span>支援者</span>
-    </button>
-    <button data-tab="tab-refer" class="tabbtn">
-      <span class="icon">🔗</span><span>紹介する</span>
-    </button>
-    <button data-tab="tab-consult" class="tabbtn">
-      <span class="icon">💬</span><span>相談する</span>
-    </button>
-  </nav>
 
   <div class="toast" id="toast"></div>
 </div>
@@ -364,8 +514,36 @@
 
   var STORAGE_KEY = "shokai_v1";
   var resetArmed = false;
+  var resetArmed2 = false;
   // 公開後のURL。file://で開いたときだけリンク生成に使う（file://のリンクは友達に送っても開けないため）
   var PUBLIC_BASE = "https://ryoseiimai.github.io/tsunagu/";
+  var SHORTEN_API = "https://tsunagu.densalon.com/api/shorten";
+  var SHORTEN_TIMEOUT_MS = 4000;
+
+  // 短縮API呼び出し。失敗・タイムアウト時は null を返す（呼び出し側で長いURLにフォールバックする）
+  function shortenLink(body){
+    if(typeof fetch !== "function") return Promise.resolve(null);
+    var controller = (typeof AbortController === "function") ? new AbortController() : null;
+    var timer = controller ? setTimeout(function(){ controller.abort(); }, SHORTEN_TIMEOUT_MS) : null;
+    return fetch(SHORTEN_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller ? controller.signal : undefined
+    }).then(function(res){
+      if(!res.ok) return null;
+      return res.json();
+    }).then(function(json){
+      return (json && json.url) ? json.url : null;
+    }).catch(function(){
+      return null;
+    }).finally(function(){
+      if(timer) clearTimeout(timer);
+    });
+  }
+
+  var STATUS_ORDER = ["送った", "相談してるみたい", "決まった！", "別のところで決まった", "見送り"];
+  var STATUS_COUNTED_AS_REFERRED = ["相談してるみたい", "決まった！", "別のところで決まった", "見送り"];
 
   function uid(prefix){
     return prefix + "_" + Math.random().toString(36).slice(2, 9);
@@ -378,10 +556,24 @@
     return location.origin + location.pathname;
   }
 
-  // ---------- base64url（日本語対応） ----------
+  function getManualLink(){
+    var base = getLinkBase().replace(/index\.html$/, "");
+    if(base.slice(-1) !== "/") base += "/";
+    return base + "manual.html";
+  }
+
+  // ---------- base64url（日本語対応・オブジェクト用） ----------
   function encodeSupporterParam(obj){
-    var json = JSON.stringify(obj);
-    var bytes = new TextEncoder().encode(json);
+    return encodeTextParam(JSON.stringify(obj));
+  }
+
+  function decodeSupporterParam(str){
+    return JSON.parse(decodeTextParam(str));
+  }
+
+  // ---------- base64url（日本語対応・文字列用。&by= のような単純な文字列に使う） ----------
+  function encodeTextParam(text){
+    var bytes = new TextEncoder().encode(text);
     var binary = "";
     for(var i=0;i<bytes.length;i++){
       binary += String.fromCharCode(bytes[i]);
@@ -390,7 +582,7 @@
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
-  function decodeSupporterParam(str){
+  function decodeTextParam(str){
     var b64 = str.replace(/-/g, "+").replace(/_/g, "/");
     while(b64.length % 4 !== 0){
       b64 += "=";
@@ -400,33 +592,29 @@
     for(var i=0;i<binary.length;i++){
       bytes[i] = binary.charCodeAt(i);
     }
-    var json = new TextDecoder().decode(bytes);
-    return JSON.parse(json);
+    return new TextDecoder().decode(bytes);
   }
 
   function loadData(){
     var raw = localStorage.getItem(STORAGE_KEY);
     if(raw){
       try{
-        return JSON.parse(raw);
+        var parsed = JSON.parse(raw);
+        // v1データからの引き継ぎ: 無い項目だけ補う（消さない）
+        if(parsed.role === undefined) parsed.role = null;
+        if(!parsed.supporters) parsed.supporters = [];
+        if(!parsed.referrals) parsed.referrals = [];
+        if(parsed.myCard === undefined) parsed.myCard = null;
+        return parsed;
       }catch(e){
         // 破損データは初期化する
       }
     }
     var initial = {
-      supporters: [
-        {
-          id: uid("sup"),
-          name: "サンプル支援者",
-          skill: "20代の転職・未経験IT",
-          area: "全国・オンライン",
-          comment: "まず話を聞くところから",
-          lineUrl: "https://line.me/ti/p/xxxx",
-          referredCount: 0,
-          decidedCount: 0
-        }
-      ],
-      referrals: []
+      role: null,
+      supporters: [],
+      referrals: [],
+      myCard: null
     };
     saveData(initial);
     return initial;
@@ -452,6 +640,12 @@
     return null;
   }
 
+  function escapeHtml(str){
+    var div = document.createElement("div");
+    div.textContent = str == null ? "" : String(str);
+    return div.innerHTML;
+  }
+
   // ---------- トースト ----------
   var toastEl = document.getElementById("toast");
   var toastTimer = null;
@@ -464,183 +658,122 @@
     }, 2400);
   }
 
-  // ---------- タブ切替 ----------
-  var tabButtons = document.querySelectorAll(".tabbtn");
-  var tabSections = document.querySelectorAll(".tab-section");
-
-  function switchTab(tabId){
-    tabSections.forEach(function(sec){
-      sec.classList.toggle("active", sec.id === tabId);
-    });
-    tabButtons.forEach(function(btn){
-      btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
-    });
-    if(tabId === "tab-supporters") renderSupporterList();
-    if(tabId === "tab-refer") { renderReferSelect(); renderReferralRecords(); }
-    if(tabId === "tab-consult") renderConsultArea();
-  }
-
-  tabButtons.forEach(function(btn){
-    btn.addEventListener("click", function(){
-      switchTab(btn.getAttribute("data-tab"));
-    });
-  });
-
-  // ---------- 支援者タブ ----------
-  function renderSupporterList(){
-    var wrap = document.getElementById("supporter-list");
-    if(data.supporters.length === 0){
-      wrap.innerHTML = '<div class="empty">まだ支援者がいません</div>';
-      return;
-    }
-    wrap.innerHTML = "";
-    data.supporters.forEach(function(s){
-      var card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML =
-        "<h3>" + escapeHtml(s.name) + "</h3>" +
-        '<div class="meta">得意: ' + escapeHtml(s.skill) + "</div>" +
-        '<div class="meta">対応: ' + escapeHtml(s.area) + "</div>" +
-        '<div class="comment">「' + escapeHtml(s.comment) + '」</div>' +
-        '<div class="stats">紹介 ' + s.referredCount + '件／決定 ' + s.decidedCount + '件</div>';
-      wrap.appendChild(card);
-    });
-  }
-
-  function escapeHtml(str){
-    var div = document.createElement("div");
-    div.textContent = str == null ? "" : String(str);
-    return div.innerHTML;
-  }
-
-  var formBox = document.getElementById("supporter-form");
-  document.getElementById("btn-open-form").addEventListener("click", function(){
-    formBox.style.display = "block";
-  });
-  document.getElementById("btn-cancel-form").addEventListener("click", function(){
-    formBox.style.display = "none";
-    clearForm();
-  });
-
-  function clearForm(){
-    document.getElementById("f-name").value = "";
-    document.getElementById("f-skill").value = "";
-    document.getElementById("f-area").value = "";
-    document.getElementById("f-comment").value = "";
-    document.getElementById("f-line").value = "";
-  }
-
-  document.getElementById("btn-save-form").addEventListener("click", function(){
-    var name = document.getElementById("f-name").value.trim();
-    var skill = document.getElementById("f-skill").value.trim();
-    var area = document.getElementById("f-area").value.trim();
-    var comment = document.getElementById("f-comment").value.trim();
-    var lineUrl = document.getElementById("f-line").value.trim();
-
-    if(!name || !skill){
-      showToast("名前と得意分野は入力してください");
-      return;
-    }
-
-    data.supporters.push({
-      id: uid("sup"),
-      name: name,
-      skill: skill,
-      area: area || "応相談",
-      comment: comment || "",
-      lineUrl: lineUrl || "",
-      referredCount: 0,
-      decidedCount: 0
-    });
-    saveData(data);
-    formBox.style.display = "none";
-    clearForm();
-    renderSupporterList();
-    renderReferSelect();
-    showToast("カードを保存しました");
-  });
-
-  // ---------- 紹介するタブ ----------
-  function renderReferSelect(){
-    var sel = document.getElementById("refer-select");
-    sel.innerHTML = "";
-    data.supporters.forEach(function(s){
-      var opt = document.createElement("option");
-      opt.value = s.id;
-      opt.textContent = s.name + "（" + s.skill + "）";
-      sel.appendChild(opt);
-    });
-    document.getElementById("refer-generated").style.display = "none";
-  }
-
-  var lastGeneratedReferralId = null;
-
-  document.getElementById("btn-generate").addEventListener("click", function(){
-    var sel = document.getElementById("refer-select");
-    var supporterId = sel.value;
-    var supporter = findSupporter(supporterId);
-    if(!supporter){
-      showToast("支援者を選んでください");
-      return;
-    }
-
-    var refId = uid("ref") + Math.random().toString(36).slice(2,6);
-    var supporterParam = encodeSupporterParam({
-      name: supporter.name,
-      skill: supporter.skill,
-      area: supporter.area,
-      comment: supporter.comment,
-      lineUrl: supporter.lineUrl
-    });
-    var link = getLinkBase() + "?s=" + supporterParam + "&ref=" + refId;
-    var text = "仕事探してるって言ってたよね。" + supporter.name + "さんって人が転職の相談乗ってくれるから、よかったら話してみて → " + link;
-
-    data.referrals.push({
-      id: refId,
-      supporterId: supporter.id,
-      createdAt: new Date().toISOString(),
-      status: "送信済",
-      countedReferred: false,
-      countedDecided: false
-    });
-    saveData(data);
-    lastGeneratedReferralId = refId;
-
-    document.getElementById("refer-text").textContent = text;
-    document.getElementById("refer-generated").style.display = "block";
-    renderReferralRecords();
-  });
-
-  document.getElementById("btn-copy").addEventListener("click", function(){
-    var text = document.getElementById("refer-text").textContent;
+  function copyText(text){
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(text).then(function(){
         showToast("コピーしました");
       }).catch(function(){
-        selectGeneratedText();
+        showToast("コピーできませんでした");
       });
     }else{
-      selectGeneratedText();
+      showToast("コピーできませんでした");
     }
-  });
-
-  function selectGeneratedText(){
-    var el = document.getElementById("refer-text");
-    var range = document.createRange();
-    range.selectNodeContents(el);
-    var sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    showToast("テキストを選択しました。手動でコピーしてください");
   }
 
-  document.getElementById("btn-line-share").addEventListener("click", function(){
-    var text = document.getElementById("refer-text").textContent;
-    var url = "https://line.me/R/share?text=" + encodeURIComponent(text);
-    window.open(url, "_blank");
+  // ---------- 画面切替 ----------
+  var views = document.querySelectorAll(".view");
+  function showView(id){
+    views.forEach(function(v){
+      v.classList.toggle("active", v.id === id);
+    });
+    window.scrollTo(0, 0);
+  }
+
+  document.querySelectorAll(".btn-change-role").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      data.role = null;
+      saveData(data);
+      showView("view-role");
+    });
   });
 
-  var STATUS_ORDER = ["送信済", "相談中", "決まった！", "別で決めた", "見送り"];
+  document.getElementById("role-refer").addEventListener("click", function(){ setRole("refer"); });
+  document.getElementById("role-support").addEventListener("click", function(){ setRole("support"); });
+
+  function setRole(role){
+    data.role = role;
+    saveData(data);
+    if(role === "refer") openReferHome();
+    else openSupportHome();
+  }
+
+  // ============================================================
+  // 紹介する人モード
+  // ============================================================
+  function openReferHome(){
+    renderReferList();
+    renderReferralRecords();
+    showView("view-refer-home");
+  }
+
+  function supporterCardHtml(s){
+    return "<h3>" + escapeHtml(s.name) + "</h3>" +
+      '<div class="meta">得意: ' + escapeHtml(s.skill) + "</div>" +
+      '<div class="meta">対応: ' + escapeHtml(s.area) + "</div>" +
+      '<div class="comment">「' + escapeHtml(s.comment) + '」</div>' +
+      '<div class="stats">紹介 ' + s.referredCount + '件・決まった ' + s.decidedCount + '件</div>';
+  }
+
+  function renderReferList(){
+    var wrap = document.getElementById("refer-supporter-list");
+    var empty = document.getElementById("refer-empty");
+    if(data.supporters.length === 0){
+      wrap.innerHTML = "";
+      empty.style.display = "block";
+      return;
+    }
+    empty.style.display = "none";
+    wrap.innerHTML = "";
+    data.supporters.forEach(function(s){
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = supporterCardHtml(s);
+      var btn = document.createElement("button");
+      btn.className = "btn btn-primary btn-small";
+      btn.style.marginTop = "10px";
+      btn.textContent = "この人を紹介する";
+      btn.addEventListener("click", function(){
+        openReferDetail(s.id);
+      });
+      card.appendChild(btn);
+      wrap.appendChild(card);
+    });
+  }
+
+  document.getElementById("btn-invite-copy").addEventListener("click", function(){
+    var text = "◯◯さんって転職の相談乗ってるよね。\n" +
+      "つなぐってアプリで自分のカード作っといてくれない？\n" +
+      "仕事探してる子いたら回すわ\n" +
+      "→ " + getLinkBase() + "\n" +
+      "使い方: " + getManualLink();
+    copyText(text);
+  });
+
+  document.getElementById("btn-try-sample").addEventListener("click", function(){
+    data.supporters.push({
+      id: uid("sup"),
+      name: "サンプル支援者",
+      skill: "20代の転職・未経験IT",
+      area: "全国・オンライン",
+      comment: "まず話を聞くところから",
+      lineUrl: "https://line.me/ti/p/xxxx",
+      referredCount: 0,
+      decidedCount: 0
+    });
+    saveData(data);
+    renderReferList();
+    showToast("見本を追加しました");
+  });
+
+  function statusMeta(status){
+    switch(status){
+      case "決まった！": return { emoji: "🎉", cls: "done" };
+      case "相談してるみたい": return { emoji: "💬", cls: "" };
+      case "別のところで決まった": return { emoji: "🙏", cls: "" };
+      case "見送り": return { emoji: "—", cls: "" };
+      default: return { emoji: "📤", cls: "" };
+    }
+  }
 
   function renderReferralRecords(){
     var wrap = document.getElementById("referral-records");
@@ -654,21 +787,32 @@
     });
     sorted.forEach(function(r){
       var supporter = findSupporter(r.supporterId);
+      var meta = statusMeta(r.status);
       var item = document.createElement("div");
-      item.className = "record-item";
+      item.className = "record-item" + (r.status === "決まった！" ? " celebrate" : "");
       var dateStr = new Date(r.createdAt).toLocaleString("ja-JP", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
-      var badgeClass = r.status === "決まった！" ? "status-badge done" : "status-badge";
+      var nameLine = supporter ? escapeHtml(supporter.name) : "不明";
+      if(r.friendName){
+        nameLine += " → " + escapeHtml(r.friendName) + "さん";
+      }
+      var badgeClass = "status-badge" + (meta.cls ? " " + meta.cls : "");
       item.innerHTML =
-        '<div class="top"><strong>' + escapeHtml(supporter ? supporter.name : "不明") + '</strong>' +
-        '<span class="' + badgeClass + '">' + escapeHtml(r.status) + '</span></div>' +
+        '<div class="top"><strong>' + nameLine + '</strong>' +
+        '<span class="' + badgeClass + '">' + meta.emoji + " " + escapeHtml(r.status) + '</span></div>' +
         '<div class="meta">' + dateStr + '</div>';
+      if(r.status === "決まった！"){
+        var celebrate = document.createElement("div");
+        celebrate.className = "celebrate-msg";
+        celebrate.textContent = "🎉 よかったね！紹介してくれてありがとう";
+        item.appendChild(celebrate);
+      }
 
       var select = document.createElement("select");
       select.className = "status-select";
       STATUS_ORDER.forEach(function(st){
         var opt = document.createElement("option");
         opt.value = st;
-        opt.textContent = st;
+        opt.textContent = statusMeta(st).emoji + " " + st;
         if(st === r.status) opt.selected = true;
         select.appendChild(opt);
       });
@@ -686,14 +830,12 @@
     var supporter = findSupporter(r.supporterId);
     r.status = newStatus;
 
-    // 「相談中」以上（送信済を除く）で紹介数を重複加算なしで+1
-    var isCountedAsReferred = newStatus === "相談中" || newStatus === "決まった！" || newStatus === "別で決めた" || newStatus === "見送り";
+    var isCountedAsReferred = STATUS_COUNTED_AS_REFERRED.indexOf(newStatus) !== -1;
     if(supporter && isCountedAsReferred && !r.countedReferred){
       supporter.referredCount += 1;
       r.countedReferred = true;
     }
 
-    // 「決まった！」で決定数を重複加算なしで+1
     if(supporter && newStatus === "決まった！" && !r.countedDecided){
       supporter.decidedCount += 1;
       r.countedDecided = true;
@@ -701,11 +843,368 @@
 
     saveData(data);
     renderReferralRecords();
-    renderSupporterList();
-    renderConsultArea();
+    if(data.role === "refer") renderReferList();
+    renderReceivedList();
   }
 
-  // ---------- 相談するタブ ----------
+  // ---------- 紹介1画面 ----------
+  var currentReferSupporterId = null;
+  var currentRefId = null;
+  var currentTone = "casual";
+  var referralCreatedForCurrentDetail = false;
+  var currentReferShortLink = null; // 取得済みの短縮URL（同じ紹介の間は使い回す）
+  var currentReferShortLinkLoading = false;
+
+  function openReferDetail(supporterId){
+    var s = findSupporter(supporterId);
+    if(!s) return;
+    currentReferSupporterId = supporterId;
+    currentRefId = uid("ref") + Math.random().toString(36).slice(2, 6);
+    currentTone = "casual";
+    referralCreatedForCurrentDetail = false;
+    currentReferShortLink = null;
+
+    document.getElementById("refer-detail-name").textContent = s.name + "さんを紹介する";
+    document.getElementById("f-friend-name").value = "";
+    document.querySelectorAll(".tone-btn").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-tone") === "casual");
+    });
+    document.getElementById("btn-refer-share").style.display = (navigator.share ? "block" : "none");
+    regeneratePreview();
+    fetchReferShortLink(s);
+    showView("view-refer-detail");
+  }
+
+  function fetchReferShortLink(s){
+    var refId = currentRefId;
+    var longS = encodeSupporterParam({
+      name: s.name, skill: s.skill, area: s.area, comment: s.comment, lineUrl: s.lineUrl
+    });
+    currentReferShortLinkLoading = true;
+    setReferSendButtonsBusy(true);
+    shortenLink({ s: longS, ref: refId }).then(function(shortUrl){
+      if(currentRefId !== refId) return; // 別の紹介に切り替わっていたら破棄
+      currentReferShortLinkLoading = false;
+      setReferSendButtonsBusy(false);
+      if(shortUrl){
+        currentReferShortLink = shortUrl;
+        regeneratePreview();
+      }
+    });
+  }
+
+  function setReferSendButtonsBusy(busy){
+    ["btn-refer-line", "btn-refer-copy", "btn-refer-share"].forEach(function(id){
+      var btn = document.getElementById(id);
+      if(!btn) return;
+      btn.disabled = busy;
+      if(busy){
+        btn.setAttribute("data-orig-text", btn.textContent);
+        btn.textContent = "準備中…";
+      }else{
+        var orig = btn.getAttribute("data-orig-text");
+        if(orig) btn.textContent = orig;
+      }
+    });
+  }
+
+  document.getElementById("btn-refer-back").addEventListener("click", openReferHome);
+
+  document.querySelectorAll(".tone-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      currentTone = btn.getAttribute("data-tone");
+      document.querySelectorAll(".tone-btn").forEach(function(b){
+        b.classList.toggle("active", b === btn);
+      });
+      regeneratePreview();
+    });
+  });
+
+  document.getElementById("f-friend-name").addEventListener("input", regeneratePreview);
+
+  // 文面プレビューは名前・トーンを変えるたびに作り直す（編集した内容はその時点で上書きされる簡略仕様）
+  function regeneratePreview(){
+    var s = findSupporter(currentReferSupporterId);
+    if(!s) return;
+    var friendName = document.getElementById("f-friend-name").value.trim();
+    var link = currentReferShortLink || (getLinkBase() + "?s=" + encodeSupporterParam({
+      name: s.name, skill: s.skill, area: s.area, comment: s.comment, lineUrl: s.lineUrl
+    }) + "&ref=" + currentRefId);
+
+    var line1;
+    if(currentTone === "polite"){
+      line1 = friendName ? friendName + "さん、お仕事をお探しと伺いました。" : "お仕事をお探しと伺いました。";
+      // 得意分野は文型に差し込まず独立した一文にする（「〜の転職の相談」のような重複を避けるため）
+      var line2 = s.name + "さんという、ご相談に乗ってくださる方がいます。";
+      var skillLine = s.skill ? s.skill + "を得意とされている方です。\n" : "";
+      var text = line1 + "\n" + line2 + "\n" + skillLine + "よろしければ一度お話ししてみてください。\n→ " + link;
+      document.getElementById("refer-detail-text").value = text;
+      return;
+    }
+
+    line1 = friendName ? friendName + "、仕事探してるって言ってたよね。" : "仕事探してるって言ってたよね。";
+    var line2c = s.name + "さんって人が相談に乗ってくれるから、よかったら話してみて。";
+    var skillLineC = s.skill ? s.skill + "が得意な人。\n" : "";
+    var text2 = line1 + "\n" + line2c + "\n" + skillLineC + "知り合いだから安心して大丈夫。\n→ " + link;
+    document.getElementById("refer-detail-text").value = text2;
+  }
+
+  function ensureReferralCreated(){
+    if(referralCreatedForCurrentDetail){
+      return findReferral(currentRefId);
+    }
+    var friendName = document.getElementById("f-friend-name").value.trim();
+    var r = {
+      id: currentRefId,
+      supporterId: currentReferSupporterId,
+      friendName: friendName,
+      tone: currentTone,
+      createdAt: new Date().toISOString(),
+      status: "送った",
+      countedReferred: false,
+      countedDecided: false
+    };
+    data.referrals.push(r);
+    saveData(data);
+    referralCreatedForCurrentDetail = true;
+    return r;
+  }
+
+  document.getElementById("btn-refer-line").addEventListener("click", function(){
+    ensureReferralCreated();
+    var text = document.getElementById("refer-detail-text").value;
+    window.open("https://line.me/R/share?text=" + encodeURIComponent(text), "_blank");
+    showToast("送りました。相手が相談したら、ここに出ます");
+    openReferHome();
+  });
+
+  document.getElementById("btn-refer-copy").addEventListener("click", function(){
+    ensureReferralCreated();
+    copyText(document.getElementById("refer-detail-text").value);
+  });
+
+  document.getElementById("btn-refer-share").addEventListener("click", function(){
+    ensureReferralCreated();
+    var text = document.getElementById("refer-detail-text").value;
+    if(navigator.share){
+      navigator.share({ text: text }).catch(function(){ /* ユーザーがキャンセルしただけ */ });
+    }
+  });
+
+  // ============================================================
+  // 支援する人モード
+  // ============================================================
+  function openSupportHome(){
+    renderMyCard();
+    renderReceivedList();
+    showView("view-support-home");
+  }
+
+  function renderMyCard(){
+    var wrap = document.getElementById("mycard-preview");
+    var distributeBox = document.getElementById("mycard-distribute");
+    if(!data.myCard){
+      wrap.innerHTML = '<div class="empty">カードをまだ作っていません</div>';
+      distributeBox.style.display = "none";
+      return;
+    }
+    var c = data.myCard;
+    var card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = supporterCardHtml(c);
+    wrap.innerHTML = "";
+    wrap.appendChild(card);
+    distributeBox.style.display = "block";
+  }
+
+  var mycardForm = document.getElementById("mycard-form");
+  document.getElementById("btn-open-mycard-form").addEventListener("click", function(){
+    var c = data.myCard;
+    document.getElementById("mc-name").value = c ? c.name : "";
+    document.getElementById("mc-skill").value = c ? c.skill : "";
+    document.getElementById("mc-area").value = c ? c.area : "";
+    document.getElementById("mc-comment").value = c ? c.comment : "";
+    document.getElementById("mc-line").value = c ? c.lineUrl : "";
+    mycardForm.style.display = "block";
+  });
+  document.getElementById("btn-cancel-mycard").addEventListener("click", function(){
+    mycardForm.style.display = "none";
+  });
+
+  document.getElementById("btn-save-mycard").addEventListener("click", function(){
+    var name = document.getElementById("mc-name").value.trim();
+    var skill = document.getElementById("mc-skill").value.trim();
+    var area = document.getElementById("mc-area").value.trim();
+    var comment = document.getElementById("mc-comment").value.trim();
+    var lineUrl = document.getElementById("mc-line").value.trim();
+
+    if(!name || !skill){
+      showToast("名前と得意分野は入力してください");
+      return;
+    }
+
+    data.myCard = {
+      id: (data.myCard && data.myCard.id) || uid("sup"),
+      name: name,
+      skill: skill,
+      area: area || "応相談",
+      comment: comment || "",
+      lineUrl: lineUrl || "",
+      referredCount: (data.myCard && data.myCard.referredCount) || 0,
+      decidedCount: (data.myCard && data.myCard.decidedCount) || 0
+      // distributeAddParam / distributeShortUrl はここで再指定しないことで、
+      // カード内容が変わったら btn-distribute クリック時に取り直しになる
+    };
+    saveData(data);
+    mycardForm.style.display = "none";
+    renderMyCard();
+    showToast("カードを保存しました");
+  });
+
+  function buildDistributeText(link){
+    return "転職の相談に乗ってます。\n" +
+      "もし仕事探してる人がいたら、つないでもらえたら嬉しいです。\n" +
+      "このリンクから、僕のカードを保存できます。\n" +
+      "→ " + link + "\n" +
+      "使い方: " + getManualLink();
+  }
+
+  var btnDistribute = document.getElementById("btn-distribute");
+  btnDistribute.addEventListener("click", function(){
+    if(!data.myCard){
+      showToast("先にカードを作ってください");
+      return;
+    }
+    var c = data.myCard;
+    var addParam = encodeSupporterParam({
+      name: c.name, skill: c.skill, area: c.area, comment: c.comment, lineUrl: c.lineUrl
+    });
+    var longLink = getLinkBase() + "?add=" + addParam;
+
+    // 一度短縮したリンクはカードに保存して使い回す（カード内容が変わっていれば取り直す）
+    if(c.distributeAddParam === addParam && c.distributeShortUrl){
+      document.getElementById("distribute-text").textContent = buildDistributeText(c.distributeShortUrl);
+      document.getElementById("distribute-generated").style.display = "block";
+      return;
+    }
+
+    var origText = btnDistribute.textContent;
+    btnDistribute.disabled = true;
+    btnDistribute.textContent = "準備中…";
+    // 配布リンクの短縮は未対応の可能性がある。失敗時は長いURLのままにする（無理に対応しない）
+    shortenLink({ add: addParam }).then(function(shortUrl){
+      var link = shortUrl || longLink;
+      if(shortUrl){
+        data.myCard.distributeAddParam = addParam;
+        data.myCard.distributeShortUrl = shortUrl;
+        saveData(data);
+      }
+      document.getElementById("distribute-text").textContent = buildDistributeText(link);
+      document.getElementById("distribute-generated").style.display = "block";
+      btnDistribute.disabled = false;
+      btnDistribute.textContent = origText;
+    });
+  });
+
+  document.getElementById("btn-distribute-copy").addEventListener("click", function(){
+    copyText(document.getElementById("distribute-text").textContent);
+  });
+
+  document.getElementById("btn-distribute-line").addEventListener("click", function(){
+    var text = document.getElementById("distribute-text").textContent;
+    window.open("https://line.me/R/share?text=" + encodeURIComponent(text), "_blank");
+  });
+
+  function renderReceivedList(){
+    var wrap = document.getElementById("received-list");
+    if(!data.myCard){
+      wrap.innerHTML = '<div class="empty">まだいません</div>';
+      return;
+    }
+    var mine = data.referrals.filter(function(r){ return r.supporterId === data.myCard.id; });
+    if(mine.length === 0){
+      wrap.innerHTML = '<div class="empty">まだいません</div>';
+      return;
+    }
+    wrap.innerHTML = "";
+    mine.slice().sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); }).forEach(function(r){
+      var meta = statusMeta(r.status);
+      var item = document.createElement("div");
+      item.className = "record-item" + (r.status === "決まった！" ? " celebrate" : "");
+      var dateStr = new Date(r.createdAt).toLocaleString("ja-JP", {month:"numeric", day:"numeric"});
+      var nameLine = r.friendName ? escapeHtml(r.friendName) + "さん" : "（名前未設定）";
+      var badgeClass = "status-badge" + (meta.cls ? " " + meta.cls : "");
+      item.innerHTML =
+        '<div class="top"><strong>' + nameLine + '</strong>' +
+        '<span class="' + badgeClass + '">' + meta.emoji + " " + escapeHtml(r.status) + '</span></div>' +
+        '<div class="meta">' + dateStr + '</div>';
+      wrap.appendChild(item);
+    });
+  }
+
+  // ============================================================
+  // ?add= 確認画面
+  // ============================================================
+  var pendingAddCard = null;
+
+  function getAddParam(){
+    var params = new URLSearchParams(location.search);
+    var raw = params.get("add");
+    if(!raw) return { value: null, error: false };
+    try{
+      return { value: decodeSupporterParam(raw), error: false };
+    }catch(e){
+      return { value: null, error: true };
+    }
+  }
+
+  function showAddConfirm(card){
+    pendingAddCard = card;
+    document.getElementById("add-confirm-name").textContent = card.name;
+    document.getElementById("add-confirm-skill").textContent = "得意: " + card.skill;
+    document.getElementById("add-confirm-area").textContent = "対応: " + (card.area || "");
+    document.getElementById("add-confirm-comment").textContent = card.comment ? "「" + card.comment + "」" : "";
+    showView("view-add-confirm");
+  }
+
+  document.getElementById("btn-add-confirm-yes").addEventListener("click", function(){
+    if(!pendingAddCard) return;
+    var already = data.supporters.some(function(s){
+      return s.name === pendingAddCard.name && s.skill === pendingAddCard.skill;
+    });
+    if(!already){
+      data.supporters.push({
+        id: uid("sup"),
+        name: pendingAddCard.name,
+        skill: pendingAddCard.skill,
+        area: pendingAddCard.area || "",
+        comment: pendingAddCard.comment || "",
+        lineUrl: pendingAddCard.lineUrl || "",
+        referredCount: 0,
+        decidedCount: 0
+      });
+    }
+    if(!data.role) data.role = "refer";
+    saveData(data);
+    showToast("紹介リストに追加しました");
+    pendingAddCard = null;
+    openReferHome();
+  });
+
+  document.getElementById("btn-add-confirm-no").addEventListener("click", function(){
+    pendingAddCard = null;
+    if(!data.role){
+      showView("view-role");
+    }else if(data.role === "refer"){
+      openReferHome();
+    }else{
+      openSupportHome();
+    }
+  });
+
+  // ============================================================
+  // 仕事を探している人（?s= で来た人）
+  // ============================================================
   function getRefParam(){
     var params = new URLSearchParams(location.search);
     return params.get("ref");
@@ -722,6 +1221,17 @@
     }
   }
 
+  function getByParam(){
+    var params = new URLSearchParams(location.search);
+    var raw = params.get("by");
+    if(!raw) return null;
+    try{
+      return decodeTextParam(raw);
+    }catch(e){
+      return null;
+    }
+  }
+
   function renderConsultArea(){
     var wrap = document.getElementById("consult-area");
     var refId = getRefParam();
@@ -729,17 +1239,15 @@
     var supporter = referral ? findSupporter(referral.supporterId) : null;
 
     var sResult = getSupporterParam();
-    var importedSupporter = null;
     if(!supporter && sResult.value){
-      importedSupporter = sResult.value;
-      // localStorageに同名の支援者が既にあれば重複追加しない
+      var importedSupporter = sResult.value;
       var already = data.supporters.some(function(s){
         return s.name === importedSupporter.name && s.skill === importedSupporter.skill;
       });
       if(!already){
-        importedSupporter.id = uid("sup");
-        importedSupporter.referredCount = 0;
-        importedSupporter.decidedCount = 0;
+        importedSupporter = Object.assign({}, importedSupporter, {
+          id: uid("sup"), referredCount: 0, decidedCount: 0
+        });
         data.supporters.push(importedSupporter);
         saveData(data);
       }
@@ -747,39 +1255,20 @@
     }
 
     if(!supporter){
-      var html = sResult.error
+      wrap.innerHTML = sResult.error
         ? '<div class="empty">リンクが古いようです</div>'
-        : '<div class="empty">紹介リンクから開くとここに支援者が出ます</div>';
-      html += '<div class="section-title" style="margin-top:16px;">一覧から選ぶ</div>';
-      wrap.innerHTML = html;
-      data.supporters.forEach(function(s){
-        var card = document.createElement("div");
-        card.className = "card";
-        card.innerHTML =
-          "<h3>" + escapeHtml(s.name) + "</h3>" +
-          '<div class="meta">得意: ' + escapeHtml(s.skill) + "</div>" +
-          '<div class="meta">対応: ' + escapeHtml(s.area) + "</div>" +
-          '<div class="comment">「' + escapeHtml(s.comment) + '」</div>';
-        var btn = document.createElement("button");
-        btn.className = "btn btn-secondary btn-small";
-        btn.textContent = "この支援者にLINEで相談する";
-        btn.addEventListener("click", function(){
-          if(s.lineUrl){
-            window.open(s.lineUrl, "_blank");
-          }else{
-            showToast("LINE連絡先が未設定です");
-          }
-        });
-        card.appendChild(btn);
-        wrap.appendChild(card);
-      });
+        : '<div class="empty">紹介リンクから開いてください</div>';
       return;
     }
+
+    var byName = getByParam();
 
     wrap.innerHTML = "";
     var big = document.createElement("div");
     big.className = "card big-card";
+    var byHtml = byName ? '<div class="meta">' + escapeHtml(byName) + 'さんからの紹介です</div>' : "";
     big.innerHTML =
+      byHtml +
       '<div class="meta">紹介された支援者</div>' +
       "<h2>" + escapeHtml(supporter.name) + "</h2>" +
       '<div class="meta">得意: ' + escapeHtml(supporter.skill) + "</div>" +
@@ -796,7 +1285,7 @@
       }else{
         showToast("LINE連絡先が未設定です");
       }
-      if(referral) updateReferralStatus(referral.id, "相談中");
+      if(referral) updateReferralStatus(referral.id, "相談してるみたい");
     });
     big.appendChild(lineBtn);
 
@@ -814,7 +1303,7 @@
       if(referral){
         updateReferralStatus(referral.id, "決まった！");
       }
-      showToast("紹介者に通知しました（試作なので画面内だけ）");
+      showToast("紹介してくれた人に伝えました（試作なので画面内だけ）");
     });
     big.appendChild(doneBtn);
 
@@ -822,42 +1311,62 @@
   }
 
   // ---------- データ全消去（confirmは使わず2度押し） ----------
-  var resetBtn = document.getElementById("btn-reset");
-  var resetTimer = null;
-  resetBtn.addEventListener("click", function(){
-    if(!resetArmed){
-      resetArmed = true;
-      resetBtn.textContent = "もう一度押すと全消去します";
-      resetTimer = setTimeout(function(){
-        resetArmed = false;
-        resetBtn.textContent = "データ全消去";
-      }, 4000);
+  function wireResetButton(btn, armedGetter, armedSetter){
+    btn.addEventListener("click", function(){
+      if(!armedGetter()){
+        armedSetter(true);
+        btn.textContent = "もう一度押すと全消去します";
+        setTimeout(function(){
+          armedSetter(false);
+          btn.textContent = "データ全消去";
+        }, 4000);
+        return;
+      }
+      localStorage.removeItem(STORAGE_KEY);
+      armedSetter(false);
+      btn.textContent = "データ全消去";
+      data = loadData();
+      showView("view-role");
+      showToast("データを初期化しました");
+    });
+  }
+  wireResetButton(document.getElementById("btn-reset"),
+    function(){ return resetArmed; }, function(v){ resetArmed = v; });
+  wireResetButton(document.getElementById("btn-reset-2"),
+    function(){ return resetArmed2; }, function(v){ resetArmed2 = v; });
+
+  // ============================================================
+  // 初期化: 起動時の分岐（1. ?s= 2. ?add= 3. 役割未設定 4. 役割のホーム）
+  // ============================================================
+  function init(){
+    var params = new URLSearchParams(location.search);
+
+    if(params.get("s") || (params.get("ref") && findReferral(params.get("ref")))){
+      renderConsultArea();
+      showView("view-consult");
       return;
     }
-    localStorage.removeItem(STORAGE_KEY);
-    clearTimeout(resetTimer);
-    resetArmed = false;
-    resetBtn.textContent = "データ全消去";
-    data = loadData();
-    renderSupporterList();
-    renderReferSelect();
-    renderReferralRecords();
-    renderConsultArea();
-    showToast("データを初期化しました");
-  });
 
-  // ---------- 初期化 ----------
-  function init(){
-    renderSupporterList();
-    renderReferSelect();
-    renderReferralRecords();
-    renderConsultArea();
+    if(params.get("add")){
+      var addResult = getAddParam();
+      if(addResult.value){
+        showAddConfirm(addResult.value);
+        return;
+      }
+      if(addResult.error){
+        showToast("リンクが壊れているようです");
+      }
+    }
 
-    var refId = getRefParam();
-    if(refId){
-      switchTab("tab-consult");
+    if(!data.role){
+      showView("view-role");
+      return;
+    }
+
+    if(data.role === "refer"){
+      openReferHome();
     }else{
-      switchTab("tab-supporters");
+      openSupportHome();
     }
   }
 
