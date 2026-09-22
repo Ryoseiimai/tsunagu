@@ -6,3 +6,6 @@ shots/
 .wrangler/
 node_modules/
 ios/codex.log
+控え/
+shots-v3/
+shots-v3-ios/
