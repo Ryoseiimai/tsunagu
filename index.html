@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#06C755">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F2F7">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000">
 <meta property="og:title" content="つなぐ">
 <meta property="og:description" content="仕事探しを、友達の紹介で。">
+<link rel="icon" type="image/png" href="logo/tsunagu_icon_216.png">
+<link rel="apple-touch-icon" href="logo/tsunagu_icon_216.png">
 <title>つなぐ - 仕事探しを、友達の紹介で。</title>
 <!--
   試作プロトタイプにつき、以下を意図的に省略しています。
@@ -17,496 +21,666 @@
     本格対応は紹介する人のプロフィール入力欄を追加し、リンク生成時にencodeTextParamで載せる。
   - 「紹介されてきた人」一覧: 支援する人が自分のカードを配ったあと、実際に別端末で紹介が発生してもこの端末には届かない。
     今は同じ端末内でmyCardが紹介リストに入っている場合のみ表示できる。本格対応はサーバー側で紹介レコードを支援者IDに紐付けて配信する。
+
+  見た目: DESIGN-v3.md（Apple HIG 準拠）。
+  Icons: Lucide (ISC) https://lucide.dev — 線アイコンをインライン SVG で埋め込み。
+  21st.dev の作法を素の CSS/JS に移植（部品 URL は 21st-picks.md の調査結果待ちのため、DESIGN-v3 §6 の要点どおり自作）:
+  - 下から出るシート = vaul 系 drawer（背景を暗く・下へ引っぱって閉じる・dvh 基準）
+  - スライドするセグメント（選択つまみが spring で横移動）
+  - sonner 系トースト（下から出て 2.4 秒で消える・複数は差し替え）
+  - 押し込みボタン（:active で scale(.97)）
+  - confetti（canvas 1.2 秒・緑/黒/灰の 3 色・reduced-motion で無効）
 -->
 <style>
   :root{
+    color-scheme:light dark;
+    --bg:#F2F2F7;
+    --surface:#FFFFFF;
+    --elevated:#FFFFFF;
+    --label:#000000;
+    --label-2:#6E6E73;
+    --label-3:#AEAEB2;
+    --separator:#C6C6C8;
+    --fill:rgba(120,120,128,.12);
     --accent:#06C755;
-    --bg:#ffffff;
-    --fg:#1a1a1a;
-    --sub:#6b6b6b;
-    --line:#e6e6e6;
-    --card:#f7f7f7;
+    --accent-text:#00873C;
+    --primary:#000000;
+    --on-primary:#FFFFFF;
+    --sheet-bg:#F2F2F7;
+    --sheet-cell:#FFFFFF;
+    --seg-thumb:#FFFFFF;
+    --material:rgba(242,242,247,.82);
+    --material-sheet:rgba(242,242,247,.86);
+    --toast-bg:#000000;
+    --toast-fg:#FFFFFF;
+    --backdrop:rgba(0,0,0,.4);
+    --ease:cubic-bezier(.2,.8,.2,1);
+    --ease-sheet:cubic-bezier(.32,.72,0,1);
+    --ease-spring:cubic-bezier(.3,1.3,.5,1);
+    --nav-h:44px;
   }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#000000;
+      --surface:#1C1C1E;
+      --elevated:#2C2C2E;
+      --label:#FFFFFF;
+      --label-2:#98989D;
+      --label-3:#636366;
+      --separator:#38383A;
+      --fill:rgba(118,118,128,.24);
+      --accent-text:#30D158;
+      --primary:#FFFFFF;
+      --on-primary:#000000;
+      --sheet-bg:#1C1C1E;
+      --sheet-cell:#2C2C2E;
+      --seg-thumb:#636366;
+      --material:rgba(0,0,0,.72);
+      --material-sheet:rgba(28,28,30,.86);
+      --toast-bg:#FFFFFF;
+      --toast-fg:#000000;
+      --backdrop:rgba(0,0,0,.6);
+    }
+  }
+
+  *,*::before,*::after{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;background:var(--bg);}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
-    background:#eeeeee;
-    color:var(--fg);
-    font-size:14px;
+    margin:0;
+    background:var(--bg);
+    color:var(--label);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;
+    font-size:17px;
     line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
+  body.locked{position:fixed;left:0;right:0;overflow:hidden;}
+  [hidden]{display:none !important;}
   #app{
-    max-width:430px;
+    max-width:480px;
     margin:0 auto;
     min-height:100vh;
-    background:var(--bg);
-    display:flex;
-    flex-direction:column;
-    position:relative;
+    min-height:100dvh;
+    padding-bottom:calc(32px + env(safe-area-inset-bottom));
   }
-  header.app-header{
-    padding:18px 16px 14px;
-    border-bottom:1px solid var(--line);
-    background:var(--bg);
-    position:sticky;
-    top:0;
-    z-index:10;
-  }
-  header.app-header h1{
-    margin:0;
-    font-size:20px;
-    font-weight:700;
-  }
-  header.app-header p{
-    margin:4px 0 0;
-    font-size:13px;
-    color:var(--sub);
-  }
-  main{
-    flex:1;
-    padding:16px;
-    padding-bottom:40px;
-  }
+  button{font-family:inherit;-webkit-tap-highlight-color:transparent;color:inherit;}
+  input,textarea{font-family:inherit;color:inherit;}
+  a{color:var(--accent-text);text-decoration:none;-webkit-tap-highlight-color:transparent;}
+  :focus{outline:none;}
+  :focus-visible{outline:2px solid var(--accent-text);outline-offset:2px;}
+  input:focus-visible,textarea:focus-visible{outline:none;}
+  svg.i{width:24px;height:24px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .ico{display:inline-flex;align-items:center;justify-content:center;}
+
+  /* ---------- 文字（DESIGN-v3 §2） ---------- */
+  .t-large{font-size:34px;line-height:1.2;font-weight:700;letter-spacing:-.01em;font-feature-settings:"palt" 1;}
+  .t-title1{font-size:28px;line-height:1.25;font-weight:700;letter-spacing:-.01em;font-feature-settings:"palt" 1;}
+  .t-title3{font-size:20px;line-height:1.35;font-weight:600;font-feature-settings:"palt" 1;}
+  .t-headline{font-size:17px;line-height:1.4;font-weight:600;}
+  .t-body{font-size:17px;line-height:1.6;font-weight:400;}
+  .t-sub{font-size:15px;line-height:1.5;font-weight:400;}
+  .t-foot{font-size:14px;line-height:1.5;font-weight:400;}
+  .l2{color:var(--label-2);}
+  .l3{color:var(--label-3);}
+  .ac{color:var(--accent-text);}
+  .center{text-align:center;}
+
+  /* ---------- 画面 ---------- */
   .view{display:none;}
   .view.active{display:block;}
-  .view-head{
-    display:flex;
+  .content{padding:0 16px;}
+
+  /* ---------- ナビバー（§5-1） ---------- */
+  .nav{
+    position:sticky;
+    top:0;
+    z-index:20;
+    display:grid;
+    grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr);
     align-items:center;
-    justify-content:space-between;
-    margin-bottom:10px;
+    height:calc(var(--nav-h) + env(safe-area-inset-top));
+    padding:env(safe-area-inset-top) 8px 0;
+    background:transparent;
+    transition:background .2s;
   }
-  .view-head .help-link{
-    font-size:20px;
+  .nav::after{
+    content:"";
+    position:absolute;left:0;right:0;bottom:0;height:1px;
+    background:var(--separator);
+    transform:scaleY(.5);transform-origin:bottom;
+    opacity:0;transition:opacity .2s;
+  }
+  .nav.scrolled{
+    background:var(--material);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);
+    backdrop-filter:blur(20px) saturate(180%);
+  }
+  .nav.scrolled::after{opacity:1;}
+  .nav-title{
+    grid-column:2;
+    font-size:17px;font-weight:600;line-height:1.4;
+    text-align:center;
+    opacity:0;transition:opacity .2s;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;
+  }
+  .nav.scrolled .nav-title,.nav.always .nav-title{opacity:1;}
+  .nav-left{grid-column:1;justify-self:start;display:flex;align-items:center;gap:4px;}
+  .nav-right{grid-column:3;justify-self:end;display:flex;align-items:center;gap:4px;}
+  .large-title{margin:0;padding:4px 16px 12px;}
+
+  .icon-btn{
+    width:44px;height:44px;
+    display:flex;align-items:center;justify-content:center;
+    background:none;border:0;padding:0;cursor:pointer;
+    color:var(--label);border-radius:50%;
+    transition:transform .2s var(--ease);
+  }
+  .icon-btn>span{width:34px;height:34px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;}
+  .icon-btn svg{width:20px;height:20px;}
+  .icon-btn:active{transform:scale(.92);}
+  .nav-btn{
+    height:44px;padding:0 8px;
+    background:none;border:0;
+    font-size:17px;line-height:1;color:var(--accent-text);
+    white-space:nowrap;
+    cursor:pointer;display:inline-flex;align-items:center;gap:2px;
+    transition:opacity .15s,transform .2s var(--ease);
+  }
+  .nav-btn.strong{font-weight:600;}
+  .nav-btn:active{opacity:.4;}
+  .nav-btn.pill{height:34px;padding:0 14px;border-radius:999px;background:var(--fill);margin:5px 0;}
+  .nav-btn.pill:active{opacity:1;transform:scale(.95);}
+  .nav-btn svg{width:22px;height:22px;margin-left:-6px;}
+
+  /* ---------- ボタン（§3・押し込み） ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:0;border-radius:999px;
+    font-size:17px;font-weight:600;line-height:1;
+    cursor:pointer;user-select:none;-webkit-user-select:none;
+    padding:0 20px;
+    transition:transform .2s var(--ease),opacity .2s;
     text-decoration:none;
-    color:var(--sub);
-    border:1px solid var(--line);
-    border-radius:50%;
-    width:30px;
-    height:30px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn:disabled{opacity:.4;cursor:default;transform:none;}
+  .btn svg{width:20px;height:20px;}
+  .btn-primary{height:52px;width:100%;background:var(--primary);color:var(--on-primary);}
+  .btn-line{height:52px;width:100%;background:var(--accent);color:#FFFFFF;}
+  .btn-secondary{height:44px;background:var(--fill);color:var(--label);}
+  .btn-text{height:44px;background:none;color:var(--accent-text);font-weight:400;padding:0 12px;}
+  .btn-mini{height:32px;padding:0 14px;background:var(--fill);color:var(--accent-text);font-size:15px;position:relative;flex-shrink:0;}
+  .btn-mini::before{content:"";position:absolute;inset:-6px;}
+  .btn-row{display:flex;gap:8px;}
+  .btn-row .btn{flex:1;}
+  .stack{display:flex;flex-direction:column;align-items:center;gap:4px;}
+
+  /* ---------- セクション・セル（§5-2） ---------- */
+  .sec-head{font-size:14px;line-height:1.5;color:var(--label-2);padding:0 16px;margin:24px 0 8px;}
+  .sec{background:var(--surface);border-radius:20px;overflow:hidden;}
+  .sec-foot{font-size:14px;line-height:1.5;color:var(--label-2);padding:8px 16px 0;}
+  .cell{position:relative;display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:44px;}
+  .cell + .cell::before{
+    content:"";position:absolute;left:16px;right:0;top:0;height:1px;
+    background:var(--separator);transform:scaleY(.5);transform-origin:top;
+  }
+  .cell-tap{cursor:pointer;transition:background .15s;}
+  .cell-tap:active{background:var(--fill);}
+  .cell-main{flex:1;min-width:0;}
+  .cell-title{font-size:17px;font-weight:600;line-height:1.4;}
+  .cell-sub{font-size:15px;line-height:1.5;color:var(--label-2);margin:0;}
+  .cell-meta{display:flex;align-items:center;gap:4px;font-size:14px;line-height:1.5;color:var(--label-2);flex-wrap:wrap;}
+  .cell-meta svg{width:14px;height:14px;}
+  .cell-comment{font-size:15px;line-height:1.5;margin:4px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .chev{color:var(--label-3);flex-shrink:0;display:inline-flex;}
+  .chev svg{width:20px;height:20px;}
+  .empty-cell{justify-content:center;font-size:14px;color:var(--label-2);padding:16px;}
+
+  .avatar{
+    width:44px;height:44px;border-radius:50%;
+    background:var(--fill);color:var(--label-2);
+    font-weight:600;font-size:17px;
+    display:inline-flex;align-items:center;justify-content:center;
     flex-shrink:0;
   }
-  .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:16px;
-    margin-bottom:14px;
+  .avatar.ac{color:var(--accent-text);}
+  .avatar-lg{width:72px;height:72px;font-size:28px;}
+  /* つなぐ線: 紹介シートと求職者画面だけに置く */
+  .connection{display:flex;align-items:center;width:208px;margin:4px auto 16px;}
+  .connection-bridge{display:flex;align-items:center;flex:1;}
+  .connection-bridge::before,.connection-bridge::after{content:"";height:1px;flex:1;background:var(--separator);}
+  .connection-link{display:flex;color:var(--accent-text);margin:0 4px;}
+  .connection-person{display:inline-flex;align-items:center;justify-content:center;}
+  .sheet.open .connection-left,.view.active .connection-left{animation:connect-left .4s var(--ease-spring);}
+  .sheet.open .connection-right,.view.active .connection-right{animation:connect-right .4s var(--ease-spring);}
+  .sheet.open .connection-link,.view.active .connection-link{animation:connect-link .4s var(--ease-spring);}
+  .connection-person.changed{animation:connect-name .18s var(--ease);}
+  @keyframes connect-left{from{transform:translateX(-12px);}to{transform:none;}}
+  @keyframes connect-right{from{transform:translateX(12px);}to{transform:none;}}
+  @keyframes connect-link{0%,25%{opacity:0;transform:scale(.5);}to{opacity:1;transform:scale(1);}}
+  @keyframes connect-name{from{opacity:.3;transform:scale(.9);}to{opacity:1;transform:scale(1);}}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    height:32px;padding:0 12px;border-radius:999px;
+    background:var(--fill);font-size:15px;line-height:1;color:var(--label);
+    max-width:100%;
   }
-  .card h3{
-    margin:0 0 6px;
-    font-size:16px;
-  }
-  .card .meta{
-    font-size:13px;
-    color:var(--sub);
-    margin:2px 0;
-  }
-  .card .comment{
-    margin:10px 0;
-    font-size:14px;
-  }
-  .card .stats{
-    font-size:12px;
-    color:var(--accent);
-    font-weight:700;
-    margin-top:8px;
-  }
-  .btn{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    height:48px;
-    padding:0 18px;
-    border-radius:10px;
-    border:none;
-    font-size:15px;
-    font-weight:700;
-    cursor:pointer;
-    width:100%;
-  }
-  .btn-primary{
-    background:var(--accent);
-    color:#fff;
-  }
-  .btn-secondary{
-    background:#fff;
-    color:var(--fg);
-    border:1px solid var(--line);
-  }
-  .btn-ghost{
-    background:transparent;
-    color:var(--sub);
-    border:1px solid var(--line);
-    height:40px;
-    font-size:13px;
-    font-weight:600;
-  }
-  .btn-small{
-    height:40px;
-    font-size:13px;
-    padding:0 10px;
-  }
-  .btn-row{
-    display:flex;
-    gap:8px;
-    margin-top:10px;
-  }
-  .btn-row .btn{margin:0;}
-  label{
-    display:block;
-    font-size:13px;
-    font-weight:600;
-    margin:12px 0 6px;
-  }
-  input[type=text], input[type=url], textarea, select{
-    width:100%;
-    padding:10px 12px;
-    border-radius:8px;
-    border:1px solid var(--line);
-    font-size:14px;
-    font-family:inherit;
-    background:#fff;
-  }
-  textarea{resize:vertical;min-height:70px;}
-  .form-box{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:14px;
-    padding:16px;
-    margin-bottom:16px;
-  }
-  .section-title{
-    font-size:15px;
-    font-weight:700;
-    margin:0 0 10px;
-  }
-  .divider{
-    border:none;
-    border-top:1px solid var(--line);
-    margin:20px 0;
-  }
-  .empty{
-    text-align:center;
-    color:var(--sub);
-    padding:24px 10px;
-    font-size:13px;
-  }
-  .empty .hint-actions{
-    margin-top:14px;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-  }
-  .generated-box{
-    background:#fff;
-    border:1px dashed var(--accent);
-    border-radius:10px;
-    padding:12px;
-    font-size:13px;
-    white-space:pre-wrap;
-    margin:10px 0;
-  }
-  .record-item{
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:10px 12px;
-    margin-bottom:8px;
-    font-size:13px;
-    background:#fff;
-  }
-  .record-item.celebrate{
-    background:#eafff1;
-    border-color:var(--accent);
-  }
-  .record-item .top{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:8px;
-  }
-  .record-item .celebrate-msg{
-    color:var(--accent);
-    font-weight:700;
-    margin-top:6px;
-    font-size:13px;
-  }
-  .status-badge{
-    display:inline-block;
-    padding:2px 8px;
-    border-radius:20px;
-    font-size:11px;
-    font-weight:700;
-    background:var(--card);
-    border:1px solid var(--line);
-    white-space:nowrap;
-  }
-  .status-badge.done{background:var(--accent);color:#fff;border-color:var(--accent);}
-  .status-select{
-    margin-top:8px;
-    height:38px;
-    font-size:12px;
-  }
-  .toast{
-    position:fixed;
-    left:50%;
-    bottom:30px;
-    transform:translateX(-50%);
-    background:#1a1a1a;
-    color:#fff;
-    padding:10px 18px;
-    border-radius:30px;
-    font-size:13px;
-    opacity:0;
-    pointer-events:none;
-    transition:opacity .25s;
-    z-index:100;
-    max-width:90%;
-    text-align:center;
-  }
-  .toast.show{opacity:1;}
-  .footer-settings{
-    margin-top:24px;
-    text-align:center;
-  }
-  .footer-settings button, .link-muted{
-    background:none;
-    border:none;
-    color:var(--sub);
-    font-size:12px;
-    text-decoration:underline;
-    cursor:pointer;
-    font-family:inherit;
-  }
-  a.link-muted{display:inline-block;}
-  .hint{
-    font-size:12px;
-    color:var(--sub);
-    margin-top:4px;
-  }
+  .chip svg{width:16px;height:16px;color:var(--label-2);}
+  .chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  /* ---------- 空の状態（§5-4） ---------- */
+  .empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 24px 16px;}
+  .empty>.ico svg{width:48px;height:48px;color:var(--label-3);stroke-width:1.5;}
+  .empty h2{margin:16px 0 8px;}
+  .empty p{margin:0 0 24px;color:var(--label-2);}
+  .empty .btn-primary{max-width:280px;}
+
+  /* ---------- 役割選択（§5-8） ---------- */
+  .role-hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:calc(56px + env(safe-area-inset-top)) 16px 8px;}
+  .app-icon{width:72px;height:72px;border-radius:16px;display:block;}
+  .role-hero h1{margin:16px 0 0;}
+  .role-hero p{margin:4px 0 0;}
+  .role-q{margin:40px 0 8px;padding:0 16px;}
+  .role-cell{min-height:88px;padding:16px;}
+  .role-foot{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:32px;}
+
+  /* ---------- 大きいカード（§5-9・§5-11） ---------- */
   .big-card{
-    text-align:center;
-    padding:26px 18px;
+    background:var(--surface);border-radius:20px;padding:24px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;
   }
-  .big-card h2{
-    margin:6px 0 4px;
-    font-size:20px;
+  .big-card .avatar-lg{margin-bottom:12px;}
+  .big-card .name{margin:0;}
+  .big-card .skill{margin:4px 0 12px;}
+  .big-card .comment{margin:16px 0 0;font-size:17px;line-height:1.7;}
+
+  /* ---------- 支援ホーム ---------- */
+  .card-actions{margin-top:16px;}
+
+  /* ---------- 求職者画面（§5-11） ---------- */
+  .brand{display:flex;align-items:center;justify-content:center;gap:8px;padding:calc(20px + env(safe-area-inset-top)) 16px 16px;font-size:14px;font-weight:600;line-height:1;}
+  .brand img{width:28px;height:28px;border-radius:7px;}
+  #consult-area{padding:0 16px;}
+  .by-chip{display:flex;justify-content:center;margin:-8px 0 16px;}
+  .by-chip .chip{color:var(--label-2);font-size:14px;}
+  .consult-foot{padding:24px 16px 0;}
+  .consult-pad{padding-bottom:calc(112px + env(safe-area-inset-bottom));}
+  .bottom-bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:15;
+    background:var(--material);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);
+    backdrop-filter:blur(20px) saturate(180%);
   }
-  /* 役割選択 */
-  .role-intro{
-    text-align:center;
-    padding:10px 8px 22px;
+  .bottom-bar::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .bottom-bar-inner{max-width:480px;margin:0 auto;padding:12px 16px calc(12px + env(safe-area-inset-bottom));}
+  .bottom-bar .reason{margin:8px 0 0;text-align:center;}
+
+  /* ---------- 追加確認・壊れたリンク ---------- */
+  .confirm{padding:calc(48px + env(safe-area-inset-top)) 16px 0;}
+  .confirm h2{margin:0 0 16px;text-align:center;}
+  .confirm .stack{margin-top:24px;}
+
+  /* ---------- フォーム（§5-10） ---------- */
+  .field{display:flex;align-items:center;gap:12px;padding:0 16px;min-height:52px;position:relative;}
+  .field + .field::before{content:"";position:absolute;left:16px;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .field>span{font-size:17px;line-height:1.4;color:var(--label);flex:0 0 96px;}
+  .field input{flex:1;min-width:0;border:0;background:none;font-size:17px;line-height:1.4;color:var(--label);padding:14px 0;height:52px;margin:0;}
+  .field input::placeholder,.field-col textarea::placeholder,.bubble::placeholder{color:var(--label-3);opacity:1;}
+  .field-col{display:block;padding:12px 16px 12px;}
+  .field-col>span{display:block;font-size:14px;line-height:1.5;color:var(--label-2);margin-bottom:4px;}
+  .field-col textarea{display:block;width:100%;border:0;background:none;font-size:17px;line-height:1.5;color:var(--label);resize:none;padding:0;margin:0;min-height:78px;}
+  .form-pad{padding-bottom:24px;}
+
+  /* ---------- セグメント（§5-5・21st.dev のスライドするセグメントを移植） ---------- */
+  .seg{position:relative;display:grid;grid-template-columns:1fr 1fr;background:var(--fill);border-radius:10px;padding:2px;height:36px;margin-top:12px;}
+  .seg-thumb{position:absolute;top:2px;left:2px;width:calc(50% - 2px);height:calc(100% - 4px);background:var(--seg-thumb);border-radius:8px;transition:transform .35s var(--ease-spring);}
+  .seg.polite .seg-thumb{transform:translateX(100%);}
+  .seg button{position:relative;z-index:1;background:none;border:0;padding:0;font-size:15px;line-height:1;color:var(--label);cursor:pointer;font-weight:400;transition:font-weight .1s;}
+  .seg button[aria-selected="true"]{font-weight:600;}
+
+  /* ---------- シート（§5-5・vaul 系 drawer を移植） ---------- */
+  .backdrop{position:fixed;inset:0;background:var(--backdrop);opacity:0;pointer-events:none;transition:opacity .32s;z-index:50;}
+  .backdrop.open{opacity:1;pointer-events:auto;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:480px;
+    background:var(--sheet-bg);
+    border-radius:20px 20px 0 0;
+    transform:translateY(100%);
+    visibility:hidden;pointer-events:none;
+    transition:transform .32s var(--ease-sheet),visibility .32s;
+    z-index:51;
+    max-height:92dvh;
+    display:flex;flex-direction:column;
+    will-change:transform;
   }
-  .role-intro p{margin:6px 0 0;color:var(--sub);}
-  .role-intro .lead{
-    margin-top:20px;
-    font-weight:700;
-    color:var(--fg);
-    font-size:15px;
+  .sheet.open{transform:none;visibility:visible;pointer-events:auto;}
+  .sheet-handle{touch-action:none;cursor:grab;}
+  .grabber{width:36px;height:5px;border-radius:3px;background:var(--label-3);margin:8px auto 0;}
+  .sheet-head{display:grid;grid-template-columns:104px minmax(0,1fr) 104px;align-items:center;min-height:52px;padding:4px 8px;}
+  .sheet-head .nav-btn{justify-self:start;}
+  .sheet-title{grid-column:2;grid-row:1;text-align:center;min-width:0;overflow-wrap:anywhere;text-wrap:balance;}
+  .sheet-title>span{display:inline-block;max-width:100%;}
+  .sheet-body{padding:4px 16px 16px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1;touch-action:pan-y;}
+  .sheet .sec{background:var(--sheet-cell);}
+  .sheet-note{margin:16px 0 8px;}
+  .bubble{
+    display:block;width:100%;
+    background:var(--fill);border:0;border-radius:18px 18px 18px 6px;
+    padding:12px 16px;
+    font-size:17px;line-height:1.5;color:var(--label);
+    resize:none;margin:0;
+    white-space:pre-wrap;overflow-wrap:anywhere;
   }
-  .role-card{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    gap:4px;
-    width:100%;
-    min-height:120px;
+  div.bubble{white-space:normal;}
+  textarea.bubble{height:177px;}
+  .bubble.loading{color:var(--label-2);}
+  .bubble .url-line{display:flex;gap:.3em;}
+  .bubble .url{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sheet-bar{
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:var(--material-sheet);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);
+    backdrop-filter:blur(20px) saturate(180%);
+    position:relative;
+  }
+  .sheet-bar::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .sheet-bar .btn-row{margin-top:8px;}
+
+  /* ---------- アクションシート（状態の選択・メニュー） ---------- */
+  .action-sheet{
+    position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));
+    max-width:464px;margin:0 auto;z-index:53;
+    transform:translateY(calc(100% + 24px));
+    visibility:hidden;pointer-events:none;
+    transition:transform .32s var(--ease-sheet),visibility .32s;
+  }
+  .action-sheet.open{transform:none;visibility:visible;pointer-events:auto;}
+  .as-group{background:var(--elevated);border-radius:14px;overflow:hidden;}
+  .as-item{
+    position:relative;display:flex;align-items:center;gap:12px;
+    width:100%;min-height:56px;padding:0 16px;
+    background:none;border:0;
+    font-size:17px;line-height:1.4;color:var(--label);text-align:left;cursor:pointer;
+  }
+  .as-item + .as-item::before{content:"";position:absolute;left:16px;right:0;top:0;height:1px;background:var(--separator);transform:scaleY(.5);transform-origin:top;}
+  .as-item:active{background:var(--fill);}
+  .as-check{width:20px;display:inline-flex;justify-content:center;color:var(--label);}
+  .as-check svg{width:18px;height:18px;}
+  .as-label{flex:1;}
+  .as-icon{display:inline-flex;color:var(--label-2);}
+  .as-icon.ac{color:var(--accent-text);}
+  .as-icon svg{width:22px;height:22px;}
+  .as-cancel{
+    margin-top:8px;width:100%;height:56px;border-radius:14px;border:0;
+    background:var(--elevated);font-size:17px;font-weight:600;color:var(--label);cursor:pointer;
+    transition:transform .2s var(--ease);
+  }
+  .as-cancel:active{transform:scale(.97);}
+  #as-backdrop{z-index:52;}
+
+  /* ---------- 履歴セル（§5-6） ---------- */
+  .status-ic{width:28px;height:28px;border-radius:50%;background:var(--fill);display:inline-flex;align-items:center;justify-content:center;color:var(--label-2);flex-shrink:0;}
+  .status-ic svg{width:16px;height:16px;}
+  .status-ic.done{color:var(--accent-text);}
+  .status-pill{
+    display:inline-flex;align-items:center;gap:2px;
+    height:32px;padding:0 8px 0 12px;border-radius:999px;
+    background:var(--fill);border:0;
+    font-size:15px;line-height:1;color:var(--label);
+    cursor:pointer;position:relative;flex-shrink:0;
+    margin-top:8px;max-width:100%;
+    transition:transform .2s var(--ease);
+  }
+  .status-pill>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .status-pill::before{content:"";position:absolute;inset:-6px;}
+  .status-pill:active{transform:scale(.97);}
+  .status-pill svg{width:16px;height:16px;color:var(--label-2);}
+  .cheer{display:flex;align-items:center;gap:6px;margin-top:4px;color:var(--accent-text);font-weight:600;font-size:17px;line-height:1.4;}
+  .cheer svg{width:20px;height:20px;}
+
+  /* ---------- トースト（§5-7・sonner 系を移植） ---------- */
+  .toast{
+    position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));
+    width:fit-content;margin:0 auto;
+    transform:translateY(24px);opacity:0;
+    background:var(--toast-bg);color:var(--toast-fg);
+    border-radius:22px;padding:11px 20px 11px 16px;
+    display:flex;align-items:center;gap:8px;
+    font-size:15px;line-height:1.4;font-weight:600;
+    z-index:60;pointer-events:none;
+    max-width:calc(100% - 32px);
     text-align:left;
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:16px;
-    padding:18px 18px;
-    margin-bottom:14px;
-    cursor:pointer;
-    font-family:inherit;
+    transition:transform .35s var(--ease),opacity .25s;
   }
-  .role-card:active{background:#eee;}
-  .role-card .role-emoji{font-size:26px;}
-  .role-card .role-title{font-size:16px;font-weight:700;margin-top:4px;}
-  .role-card .role-desc{font-size:13px;color:var(--sub);}
-  /* トーン切替 */
-  .tone-row{
-    display:flex;
-    gap:8px;
-    margin:8px 0 4px;
-  }
-  .tone-btn{
-    flex:1;
-    height:38px;
-    border-radius:20px;
-    border:1px solid var(--line);
-    background:#fff;
-    color:var(--sub);
-    font-size:13px;
-    font-weight:700;
-    cursor:pointer;
-  }
-  .tone-btn.active{
-    background:var(--accent);
-    color:#fff;
-    border-color:var(--accent);
+  .toast.show{transform:none;opacity:1;}
+  .toast svg{width:18px;height:18px;flex-shrink:0;}
+  .toast-text{margin:0;text-wrap:balance;}
+
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:70;display:none;}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{transition:none !important;animation:none !important;}
   }
 </style>
 </head>
 <body>
 <div id="app">
-  <header class="app-header">
-    <h1>つなぐ</h1>
-    <p>仕事探しを、友達の紹介で。</p>
-  </header>
 
-  <main>
-
-    <!-- 役割選択 -->
-    <section id="view-role" class="view">
-      <div class="role-intro">
-        <p>はじめまして。</p>
-        <p class="lead">どちらで使いますか？</p>
-      </div>
-      <button class="role-card" id="role-refer">
-        <div class="role-emoji">🤝</div>
-        <div class="role-title">友達を紹介したい</div>
-        <div class="role-desc">仕事を探してる友達を、相談できる人に繋ぐ</div>
-      </button>
-      <button class="role-card" id="role-support">
-        <div class="role-emoji">💼</div>
-        <div class="role-title">仕事探しを手伝っている</div>
-        <div class="role-desc">自分のカードを作って、紹介してもらう</div>
-      </button>
-      <div style="text-align:center;margin-top:10px;">
-        <a class="link-muted" href="manual.html">使い方を見る</a>
-      </div>
-    </section>
-
-    <!-- ?add= 確認画面 -->
-    <section id="view-add-confirm" class="view">
-      <div class="card" style="text-align:center;">
-        <div class="meta">支援者カードが届きました</div>
-        <h2 id="add-confirm-name" style="margin:8px 0 4px;font-size:19px;"></h2>
-        <div class="meta" id="add-confirm-skill"></div>
-        <div class="meta" id="add-confirm-area"></div>
-        <div class="comment" id="add-confirm-comment"></div>
-        <p style="margin-top:14px;font-weight:700;">この人をあなたの紹介リストに追加しますか？</p>
-        <button class="btn btn-primary" id="btn-add-confirm-yes">紹介リストに追加する</button>
-        <button class="btn btn-ghost" id="btn-add-confirm-no" style="margin-top:8px;width:100%;">今は追加しない</button>
-      </div>
-    </section>
-
-    <!-- 紹介する人：ホーム -->
-    <section id="view-refer-home" class="view">
-      <div class="view-head">
-        <div class="section-title" style="margin:0;">紹介できる人</div>
-        <a class="help-link" href="manual.html" title="使い方を見る">?</a>
-      </div>
-      <div id="refer-supporter-list"></div>
-      <div class="empty" id="refer-empty" style="display:none;">
-        まだ紹介できる人がいません<br><br>
-        仕事探しを手伝っている知り合いに、<br>カードを作ってもらってください。
-        <div class="hint-actions">
-          <button class="btn btn-secondary btn-small" id="btn-invite-copy">誘い文をコピー</button>
-          <button class="btn btn-ghost" id="btn-try-sample">見本で試す</button>
-        </div>
-      </div>
-
-      <hr class="divider">
-      <div class="section-title">紹介したあと</div>
-      <div id="referral-records"></div>
-
-      <div class="footer-settings">
-        <button class="btn-change-role">役割を変える</button>
-        &nbsp;・&nbsp;
-        <button id="btn-reset">データ全消去</button>
-      </div>
-    </section>
-
-    <!-- 紹介する人：紹介1画面 -->
-    <section id="view-refer-detail" class="view">
-      <div class="view-head">
-        <button class="link-muted" id="btn-refer-back" style="font-size:13px;">← 戻る</button>
-      </div>
-      <div class="section-title" id="refer-detail-name">紹介する</div>
-
-      <label for="f-friend-name">友達の名前（入れなくてもOK）</label>
-      <input type="text" id="f-friend-name" placeholder="例: たかし">
-
-      <label for="refer-detail-text">送る文面（編集できます）</label>
-      <textarea id="refer-detail-text" rows="6"></textarea>
-
-      <div class="tone-row">
-        <button class="tone-btn active" data-tone="casual">カジュアル</button>
-        <button class="tone-btn" data-tone="polite">ていねい</button>
-      </div>
-
-      <button class="btn btn-primary" id="btn-refer-line" style="margin-top:14px;background:#06C755;">LINEで送る</button>
-      <div class="btn-row">
-        <button class="btn btn-secondary btn-small" id="btn-refer-copy">コピー</button>
-        <button class="btn btn-secondary btn-small" id="btn-refer-share" style="display:none;">他のアプリで送る</button>
-      </div>
-    </section>
-
-    <!-- 支援する人：ホーム -->
-    <section id="view-support-home" class="view">
-      <div class="view-head">
-        <div class="section-title" style="margin:0;">自分のカード</div>
-        <a class="help-link" href="manual.html" title="使い方を見る">?</a>
-      </div>
-      <div id="mycard-preview"></div>
-      <button class="btn btn-secondary" id="btn-open-mycard-form">カードを編集する</button>
-
-      <div class="form-box" id="mycard-form" style="display:none;">
-        <div class="section-title">カードを作る</div>
-        <label for="mc-name">名前</label>
-        <input type="text" id="mc-name" placeholder="例: 山田 太郎">
-        <label for="mc-skill">得意分野</label>
-        <input type="text" id="mc-skill" placeholder="例: 20代の転職・未経験IT">
-        <label for="mc-area">対応地域</label>
-        <input type="text" id="mc-area" placeholder="例: 全国・オンライン">
-        <label for="mc-comment">一言</label>
-        <textarea id="mc-comment" placeholder="例: まず話を聞くところから"></textarea>
-        <label for="mc-line">LINE連絡先URL</label>
-        <input type="url" id="mc-line" placeholder="https://line.me/ti/p/xxxx">
-        <div class="btn-row">
-          <button class="btn btn-secondary" id="btn-cancel-mycard">キャンセル</button>
-          <button class="btn btn-primary" id="btn-save-mycard">保存</button>
-        </div>
-      </div>
-
-      <div id="mycard-distribute" style="display:none;">
-        <hr class="divider">
-        <div class="section-title">紹介してくれる人に配る</div>
-        <button class="btn btn-primary" id="btn-distribute">配布リンクをつくる</button>
-        <div id="distribute-generated" style="display:none;">
-          <div class="generated-box" id="distribute-text"></div>
-          <div class="btn-row">
-            <button class="btn btn-secondary btn-small" id="btn-distribute-copy">コピー</button>
-            <button class="btn btn-primary btn-small" id="btn-distribute-line">LINEで送る</button>
+  <!-- 役割選択 -->
+  <section id="view-role" class="view">
+    <div class="role-hero">
+      <img class="app-icon" src="logo/tsunagu_icon_216.png" width="72" height="72" alt="">
+      <h1 class="t-large">つなぐ</h1>
+      <p class="t-body l2">仕事探しを、友達の紹介で。</p>
+    </div>
+    <h2 class="t-title3 role-q">どちらで使いますか？</h2>
+    <div class="content">
+      <div class="sec">
+        <div class="cell cell-tap role-cell" id="role-refer" role="button" tabindex="0">
+          <span class="avatar ac"><span class="ico" data-icon="users"></span></span>
+          <div class="cell-main">
+            <div class="cell-title">友達を紹介したい</div>
+            <p class="cell-sub">仕事を探してる友達を、相談できる人に繋ぐ</p>
           </div>
+          <span class="chev ico" data-icon="chevron-right"></span>
+        </div>
+        <div class="cell cell-tap role-cell" id="role-support" role="button" tabindex="0">
+          <span class="avatar ac"><span class="ico" data-icon="briefcase"></span></span>
+          <div class="cell-main">
+            <div class="cell-title">仕事探しを手伝っている</div>
+            <p class="cell-sub">自分のカードを作って、紹介してもらう</p>
+          </div>
+          <span class="chev ico" data-icon="chevron-right"></span>
         </div>
       </div>
-
-      <hr class="divider">
-      <div class="section-title">紹介されてきた人</div>
-      <div id="received-list"></div>
-
-      <div class="footer-settings">
-        <button class="btn-change-role">役割を変える</button>
-        &nbsp;・&nbsp;
-        <button id="btn-reset-2">データ全消去</button>
+      <div class="role-foot">
+        <a class="btn btn-text" href="manual.html">使い方を見る</a>
+        <a class="t-foot" href="privacy.html">プライバシーポリシー</a>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- 仕事を探している人（リンクで来た人） -->
-    <section id="view-consult" class="view">
+  <!-- ?add= 追加確認 -->
+  <section id="view-add-confirm" class="view">
+    <div class="confirm">
+      <h2 class="t-title3">紹介リストに追加しますか？</h2>
+      <div id="add-confirm-card"></div>
+      <div class="stack">
+        <button type="button" class="btn btn-primary" id="btn-add-confirm-yes">追加する</button>
+        <button type="button" class="btn btn-text" id="btn-add-confirm-no">追加しない</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 壊れたリンク -->
+  <section id="view-broken" class="view">
+    <div class="empty" style="padding-top:calc(96px + env(safe-area-inset-top));">
+      <span class="ico" data-icon="link"></span>
+      <h2 class="t-title3">リンクが古いようです</h2>
+      <p class="t-body">リンクが途中で切れているか、古いものかもしれません。送ってくれた人に、もう一度リンクをもらってみてください。</p>
+      <button type="button" class="btn btn-primary" id="btn-broken-home">ホームへ</button>
+    </div>
+  </section>
+
+  <!-- 紹介する人：ホーム -->
+  <section id="view-refer-home" class="view">
+    <header class="nav">
+      <div class="nav-left"></div>
+      <div class="nav-title">紹介できる人</div>
+      <div class="nav-right">
+        <a class="icon-btn" href="manual.html" aria-label="使い方を見る"><span class="ico" data-icon="circle-help"></span></a>
+        <button type="button" class="icon-btn btn-menu" aria-label="メニュー"><span class="ico" data-icon="ellipsis"></span></button>
+      </div>
+    </header>
+    <h1 class="t-large large-title">紹介できる人</h1>
+    <div class="content">
+      <div id="refer-supporter-list"></div>
+      <div class="empty" id="refer-empty" hidden>
+        <span class="ico" data-icon="users"></span>
+        <h2 class="t-title3">まだ紹介できる人がいません</h2>
+        <p class="t-body">仕事探しを手伝っている知り合いに、カードを作ってもらってください。</p>
+        <button type="button" class="btn btn-primary" id="btn-invite-copy">誘い文をコピー</button>
+        <button type="button" class="btn btn-text" id="btn-try-sample">見本で試す</button>
+      </div>
+      <div id="referral-records"></div>
+    </div>
+  </section>
+
+  <!-- 支援する人：ホーム -->
+  <section id="view-support-home" class="view">
+    <header class="nav">
+      <div class="nav-left"></div>
+      <div class="nav-title">あなたのカード</div>
+      <div class="nav-right">
+        <button type="button" class="nav-btn pill" id="btn-edit-card" hidden>編集</button>
+        <a class="icon-btn" href="manual.html" aria-label="使い方を見る"><span class="ico" data-icon="circle-help"></span></a>
+        <button type="button" class="icon-btn btn-menu" aria-label="メニュー"><span class="ico" data-icon="ellipsis"></span></button>
+      </div>
+    </header>
+    <h1 class="t-large large-title">あなたのカード</h1>
+    <div class="content">
+      <div id="mycard-preview"></div>
+      <div class="empty" id="mycard-empty" hidden>
+        <span class="ico" data-icon="id-card"></span>
+        <h2 class="t-title3">カードをまだ作っていません</h2>
+        <p class="t-body">名前と得意分野を入れるだけで、紹介してもらえるカードができます。</p>
+        <button type="button" class="btn btn-primary" id="btn-create-card">カードを作る</button>
+      </div>
+      <div class="card-actions" id="mycard-distribute" hidden>
+        <button type="button" class="btn btn-primary" id="btn-distribute">紹介してくれる人に配る</button>
+      </div>
+      <div id="received-wrap" hidden>
+        <div class="sec-head">紹介されてきた人</div>
+        <div id="received-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 支援する人：カード編集 -->
+  <section id="view-card-edit" class="view">
+    <header class="nav plain always">
+      <div class="nav-left"><button type="button" class="nav-btn pill" id="btn-cancel-mycard">キャンセル</button></div>
+      <div class="nav-title">カードを編集</div>
+      <div class="nav-right"><button type="button" class="nav-btn pill strong" id="btn-save-mycard">保存</button></div>
+    </header>
+    <div class="content form-pad">
+      <div class="sec-head">カードに出る情報</div>
+      <div class="sec">
+        <label class="field"><span>名前</span><input type="text" id="mc-name" placeholder="例: 山田 太郎" autocomplete="name"></label>
+        <label class="field"><span>得意分野</span><input type="text" id="mc-skill" placeholder="例: 20代の転職・未経験IT"></label>
+        <label class="field"><span>対応地域</span><input type="text" id="mc-area" placeholder="例: 全国・オンライン"></label>
+      </div>
+      <div class="sec-head">一言</div>
+      <div class="sec">
+        <label class="field-col"><span>相談する人に向けて</span><textarea id="mc-comment" rows="3" placeholder="例: まず話を聞くところから"></textarea></label>
+      </div>
+      <div class="sec-head">連絡先</div>
+      <div class="sec">
+        <label class="field"><span>LINEのURL</span><input type="url" id="mc-line" placeholder="https://line.me/ti/p/xxxx" inputmode="url" autocapitalize="off" autocorrect="off"></label>
+      </div>
+      <div class="sec-foot">LINEの友だち追加画面にある「マイQRコード」から「リンクをコピー」で取れます。相談する人は、このリンクからあなたにLINEできます。</div>
+    </div>
+  </section>
+
+  <!-- 仕事を探している人（リンクで来た人） -->
+  <section id="view-consult" class="view">
+    <div class="consult-pad">
+      <div class="brand"><img src="logo/tsunagu_icon_216.png" alt=""><span>つなぐ</span></div>
       <div id="consult-area"></div>
-    </section>
+    </div>
+    <div class="bottom-bar" id="consult-bar" hidden>
+      <div class="bottom-bar-inner">
+        <button type="button" class="btn btn-line" id="btn-consult-line"><span class="ico" data-icon="message-circle"></span><span>LINEで相談する</span></button>
+        <p class="t-foot l2 reason" id="consult-reason" hidden>この人はLINEの連絡先をまだ登録していません</p>
+      </div>
+    </div>
+  </section>
 
-  </main>
-
-  <div class="toast" id="toast"></div>
 </div>
+
+<!-- 紹介シート -->
+<div class="backdrop" id="sheet-backdrop"></div>
+<div class="sheet" id="sheet-refer" role="dialog" aria-modal="true" aria-labelledby="refer-sheet-title" aria-hidden="true" inert>
+  <div class="sheet-handle">
+    <div class="grabber"></div>
+    <div class="sheet-head">
+      <button type="button" class="nav-btn sheet-cancel">キャンセル</button>
+      <div class="sheet-title t-headline" id="refer-sheet-title">紹介</div>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div id="refer-connection"></div>
+    <div class="sec">
+      <label class="field"><span>送る相手</span><input type="text" id="f-friend-name" placeholder="友達の名前（なくてもOK）" autocomplete="off"></label>
+    </div>
+    <div class="seg" id="tone-seg" role="tablist" aria-label="文面のトーン">
+      <span class="seg-thumb"></span>
+      <button type="button" role="tab" class="tone-btn" data-tone="casual" aria-selected="true">カジュアル</button>
+      <button type="button" role="tab" class="tone-btn" data-tone="polite" aria-selected="false">ていねい</button>
+    </div>
+    <div class="t-foot l2 sheet-note">相手にはこう届きます</div>
+    <textarea id="refer-detail-text" class="bubble" rows="6" spellcheck="false" aria-label="送る文面"></textarea>
+  </div>
+  <div class="sheet-bar">
+    <button type="button" class="btn btn-line" id="btn-refer-line"><span class="ico" data-icon="message-circle"></span><span class="btn-label">LINEで送る</span></button>
+    <div class="btn-row">
+      <button type="button" class="btn btn-secondary" id="btn-refer-copy"><span class="ico" data-icon="copy"></span><span class="btn-label">コピー</span></button>
+      <button type="button" class="btn btn-secondary" id="btn-refer-share" hidden><span class="ico" data-icon="share"></span><span class="btn-label">ほかのアプリ</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- 配布シート -->
+<div class="sheet" id="sheet-distribute" role="dialog" aria-modal="true" aria-labelledby="distribute-sheet-title" aria-hidden="true" inert>
+  <div class="sheet-handle">
+    <div class="grabber"></div>
+    <div class="sheet-head">
+      <button type="button" class="nav-btn sheet-cancel">キャンセル</button>
+      <div class="sheet-title t-headline" id="distribute-sheet-title"><span>紹介してくれる</span><wbr><span>人に配る</span></div>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="t-foot l2 sheet-note" style="margin-top:4px;">相手にはこう届きます</div>
+    <div class="bubble" id="distribute-text"></div>
+  </div>
+  <div class="sheet-bar">
+    <button type="button" class="btn btn-line" id="btn-distribute-line"><span class="ico" data-icon="message-circle"></span><span class="btn-label">LINEで送る</span></button>
+    <div class="btn-row">
+      <button type="button" class="btn btn-secondary" id="btn-distribute-copy"><span class="ico" data-icon="copy"></span><span class="btn-label">コピー</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- アクションシート -->
+<div class="backdrop" id="as-backdrop"></div>
+<div class="action-sheet" id="action-sheet" role="menu" aria-hidden="true" inert>
+  <div class="as-group" id="as-items"></div>
+  <button type="button" class="as-cancel" id="as-cancel">キャンセル</button>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span class="ico" data-icon="check"></span><p class="toast-text"></p></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
 
 <script>
 (function(){
@@ -514,11 +688,50 @@
 
   var STORAGE_KEY = "shokai_v1";
   var resetArmed = false;
-  var resetArmed2 = false;
+  var resetTimer = null;
+  var RESET_ARM_MS = 4000;
   // 公開後のURL。file://で開いたときだけリンク生成に使う（file://のリンクは友達に送っても開けないため）
   var PUBLIC_BASE = "https://ryoseiimai.github.io/tsunagu/";
   var SHORTEN_API = "https://tsunagu.densalon.com/api/shorten";
   var SHORTEN_TIMEOUT_MS = 4000;
+  var TOAST_MS = 2400;
+  var CONFETTI_MS = 1200;
+  var CONFETTI_COUNT = 90;
+  var SHEET_CLOSE_DISTANCE = 120;
+  var SHEET_CLOSE_VELOCITY = 0.5;
+
+  // ---------- アイコン（Lucide, ISC） ----------
+  var ICONS = {
+    "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    "briefcase": '<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+    "circle-help": '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    "ellipsis": '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+    "map-pin": '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+    "send": '<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+    "messages-square": '<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+    "badge-check": '<path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/>',
+    "corner-up-right": '<path d="m15 14 5-5-5-5"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>',
+    "circle-minus": '<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/>',
+    "copy": '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    "share": '<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>',
+    "message-circle": '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    "id-card": '<path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/>',
+    "arrow-left-right": '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+    "trash-2": '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>'
+  };
+  function icon(name, cls){
+    return '<svg class="i' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || "") + "</svg>";
+  }
+  document.querySelectorAll("[data-icon]").forEach(function(el){
+    el.innerHTML = icon(el.getAttribute("data-icon"));
+  });
+
+  function $(id){ return document.getElementById(id); }
 
   // 短縮API呼び出し。失敗・タイムアウト時は null を返す（呼び出し側で長いURLにフォールバックする）
   function shortenLink(body){
@@ -544,6 +757,7 @@
 
   var STATUS_ORDER = ["送った", "相談してるみたい", "決まった！", "別のところで決まった", "見送り"];
   var STATUS_COUNTED_AS_REFERRED = ["相談してるみたい", "決まった！", "別のところで決まった", "見送り"];
+  var STATUS_DONE = "決まった！";
 
   function uid(prefix){
     return prefix + "_" + Math.random().toString(36).slice(2, 9);
@@ -646,16 +860,63 @@
     return div.innerHTML;
   }
 
+  function initial(name){
+    var chars = Array.from(String(name || ""));
+    return chars.length ? chars[0] : "?";
+  }
+
+  function connectionPersonHtml(name){
+    return name ? escapeHtml(initial(name)) : icon("user");
+  }
+
+  function connectionHtml(leftName, rightName){
+    return '<div class="connection" aria-hidden="true">' +
+      '<span class="avatar connection-left"><span class="connection-person">' + connectionPersonHtml(leftName) + '</span></span>' +
+      '<span class="connection-bridge"><span class="connection-link">' + icon("link") + '</span></span>' +
+      '<span class="avatar connection-right">' + escapeHtml(initial(rightName)) + '</span>' +
+    '</div>';
+  }
+
+  function updateReferConnection(){
+    var person = $("refer-connection").querySelector(".connection-person");
+    if(!person) return;
+    var html = connectionPersonHtml($("f-friend-name").value.trim());
+    if(person.innerHTML === html) return;
+    // 文字だけ差し替え、丸と線の登場アニメーションは繰り返さない。
+    var next = document.createElement("span");
+    next.className = "connection-person changed";
+    next.innerHTML = html;
+    person.replaceWith(next);
+  }
+
+  function fmtDate(iso, withTime){
+    var d = new Date(iso);
+    var s = (d.getMonth() + 1) + "月" + d.getDate() + "日";
+    if(withTime) s += " " + d.getHours() + ":" + ("0" + d.getMinutes()).slice(-2);
+    return s;
+  }
+
+  function reducedMotion(){
+    return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function rewrap(root){
+    if(typeof window.insertPhraseBreaks === "function") window.insertPhraseBreaks(root);
+  }
+
   // ---------- トースト ----------
-  var toastEl = document.getElementById("toast");
+  var toastEl = $("toast");
   var toastTimer = null;
   function showToast(msg){
-    toastEl.textContent = msg;
+    toastEl.querySelector(".toast-text").textContent = msg;
+    rewrap(toastEl);
+    toastEl.classList.remove("show");
+    void toastEl.offsetWidth; // 連続時は重ねずに差し替える
     toastEl.classList.add("show");
     if(toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(function(){
       toastEl.classList.remove("show");
-    }, 2400);
+    }, TOAST_MS);
   }
 
   function copyText(text){
@@ -670,6 +931,62 @@
     }
   }
 
+  // ---------- 紙吹雪（緑・黒（ダークは白）・灰の3色だけ） ----------
+  var confettiCanvas = $("confetti");
+  function celebrate(anchorEl){
+    if(reducedMotion() || !confettiCanvas.getContext) return;
+    var ctx = confettiCanvas.getContext("2d");
+    var dpr = window.devicePixelRatio || 1;
+    var W = window.innerWidth, H = window.innerHeight;
+    confettiCanvas.width = W * dpr;
+    confettiCanvas.height = H * dpr;
+    confettiCanvas.style.display = "block";
+    ctx.scale(dpr, dpr);
+    var origin = { x: W / 2, y: H * 0.35 };
+    if(anchorEl){
+      var r = anchorEl.getBoundingClientRect();
+      if(r.width || r.height) origin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+    var labelColor = getComputedStyle(document.documentElement).getPropertyValue("--label").trim() || "#000000";
+    var colors = ["#06C755", labelColor, "#8E8E93"];
+    var parts = [];
+    for(var i=0;i<CONFETTI_COUNT;i++){
+      var a = Math.random() * Math.PI * 2;
+      var sp = 5 + Math.random() * 9;
+      parts.push({
+        x: origin.x, y: origin.y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 7,
+        w: 6 + Math.random() * 4, h: 3 + Math.random() * 3,
+        rot: Math.random() * Math.PI, vr: (Math.random() - .5) * .3,
+        c: colors[i % colors.length]
+      });
+    }
+    var start = null;
+    function frame(t){
+      if(start === null) start = t;
+      var p = (t - start) / CONFETTI_MS;
+      ctx.clearRect(0, 0, W, H);
+      parts.forEach(function(q){
+        q.vy += .35; q.vx *= .98;
+        q.x += q.vx; q.y += q.vy; q.rot += q.vr;
+        ctx.save();
+        ctx.translate(q.x, q.y);
+        ctx.rotate(q.rot);
+        ctx.globalAlpha = Math.max(0, 1 - Math.max(0, p - .6) / .4);
+        ctx.fillStyle = q.c;
+        ctx.fillRect(-q.w / 2, -q.h / 2, q.w, q.h);
+        ctx.restore();
+      });
+      if(p < 1){
+        requestAnimationFrame(frame);
+      }else{
+        ctx.clearRect(0, 0, W, H);
+        confettiCanvas.style.display = "none";
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
   // ---------- 画面切替 ----------
   var views = document.querySelectorAll(".view");
   function showView(id){
@@ -679,16 +996,209 @@
     window.scrollTo(0, 0);
   }
 
-  document.querySelectorAll(".btn-change-role").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      data.role = null;
-      saveData(data);
-      showView("view-role");
-    });
+  // 大見出しがナビの下に隠れたら、小さい中央タイトル付きの半透明バーにする
+  var largeTitles = document.querySelectorAll(".large-title");
+  if("IntersectionObserver" in window){
+    var navObserver = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        var view = en.target.closest(".view");
+        var nav = view ? view.querySelector(".nav") : null;
+        if(!nav) return;
+        nav.classList.toggle("scrolled", !en.isIntersecting && en.boundingClientRect.top < 0);
+      });
+    }, { rootMargin: "-44px 0px 0px 0px", threshold: 0 });
+    largeTitles.forEach(function(el){ navObserver.observe(el); });
+  }
+  window.addEventListener("scroll", function(){
+    var active = document.querySelector(".view.active");
+    var nav = active ? active.querySelector(".nav.plain") : null;
+    if(nav) nav.classList.toggle("scrolled", window.scrollY > 4);
+  }, { passive: true });
+
+  // role=button の div をキーボードでも押せるようにする
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Enter" && e.key !== " ") return;
+    var t = e.target;
+    if(t && t.getAttribute && t.getAttribute("role") === "button" && t.tagName !== "BUTTON"){
+      e.preventDefault();
+      t.click();
+    }
   });
 
-  document.getElementById("role-refer").addEventListener("click", function(){ setRole("refer"); });
-  document.getElementById("role-support").addEventListener("click", function(){ setRole("support"); });
+  // ---------- スクロール固定（シートを開いている間） ----------
+  var scrollLockY = 0;
+  function lockScroll(){
+    scrollLockY = window.scrollY;
+    document.body.style.top = -scrollLockY + "px";
+    document.body.classList.add("locked");
+  }
+  function unlockScroll(){
+    document.body.classList.remove("locked");
+    document.body.style.top = "";
+    window.scrollTo(0, scrollLockY);
+  }
+
+  // ---------- シート（下から出る・下へ引っぱって閉じる） ----------
+  var activeSheet = null;
+  var sheetBackdrop = $("sheet-backdrop");
+  function openSheet(id){
+    var sheet = $(id);
+    if(activeSheet && activeSheet !== sheet) closeSheet();
+    lockScroll();
+    sheetBackdrop.classList.add("open");
+    sheet.classList.add("open");
+    sheet.inert = false;
+    sheet.setAttribute("aria-hidden", "false");
+    activeSheet = sheet;
+  }
+  function closeSheet(){
+    if(!activeSheet) return;
+    var sheet = activeSheet;
+    activeSheet = null;
+    sheet.classList.remove("open");
+    sheet.inert = true;
+    sheet.style.transform = "";
+    sheet.setAttribute("aria-hidden", "true");
+    sheetBackdrop.classList.remove("open");
+    unlockScroll();
+  }
+  sheetBackdrop.addEventListener("click", closeSheet);
+  document.querySelectorAll(".sheet-cancel").forEach(function(b){ b.addEventListener("click", closeSheet); });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape"){
+      if(actionSheetOpen) closeActionSheet();
+      else closeSheet();
+    }
+  });
+
+  function makeDraggable(sheet){
+    var handle = sheet.querySelector(".sheet-handle");
+    var body = sheet.querySelector(".sheet-body");
+    var dragging = false, startY = 0, dy = 0, startAt = 0, pointerId = null;
+    function begin(e){
+      if(e.pointerType === "mouse" && e.button !== 0) return;
+      dragging = true; startY = e.clientY; dy = 0; startAt = Date.now(); pointerId = e.pointerId;
+      sheet.style.transition = "none";
+    }
+    function move(e){
+      if(!dragging || e.pointerId !== pointerId) return;
+      dy = Math.max(0, e.clientY - startY);
+      sheet.style.transform = "translateY(" + dy + "px)";
+    }
+    function end(e){
+      if(!dragging || e.pointerId !== pointerId) return;
+      dragging = false;
+      sheet.style.transition = "";
+      var velocity = dy / Math.max(1, Date.now() - startAt);
+      if(dy > SHEET_CLOSE_DISTANCE || velocity > SHEET_CLOSE_VELOCITY){
+        closeSheet();
+      }else{
+        sheet.style.transform = "";
+      }
+    }
+    handle.addEventListener("pointerdown", function(e){
+      if(e.target.closest("button,a,input,textarea,select")) return;
+      begin(e); handle.setPointerCapture(e.pointerId);
+    });
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+    // 本文が一番上にあるときだけ、本文からも引っぱれる（入力欄・ボタン上では開始しない）
+    body.addEventListener("pointerdown", function(e){
+      var t = e.target;
+      if(t.closest("input,textarea,button,select,a")) return;
+      if(body.scrollTop > 0) return;
+      begin(e);
+      body.setPointerCapture(e.pointerId);
+    });
+    body.addEventListener("pointermove", move);
+    body.addEventListener("pointerup", end);
+    body.addEventListener("pointercancel", end);
+  }
+  makeDraggable($("sheet-refer"));
+  makeDraggable($("sheet-distribute"));
+
+  // ---------- アクションシート ----------
+  var actionSheetOpen = false;
+  var actionSheet = $("action-sheet");
+  var asBackdrop = $("as-backdrop");
+  function openActionSheet(items){
+    var list = $("as-items");
+    list.innerHTML = "";
+    items.forEach(function(it){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "as-item";
+      b.setAttribute("role", "menuitem");
+      b.innerHTML =
+        '<span class="as-check">' + (it.checked ? icon("check") : "") + '</span>' +
+        '<span class="as-label">' + escapeHtml(it.label) + '</span>' +
+        (it.icon ? '<span class="as-icon' + (it.iconClass ? " " + it.iconClass : "") + '">' + icon(it.icon) + '</span>' : "");
+      b.addEventListener("click", function(){
+        var keepOpen = it.onSelect ? it.onSelect(b) : false;
+        if(!keepOpen) closeActionSheet();
+      });
+      list.appendChild(b);
+    });
+    lockScroll();
+    asBackdrop.classList.add("open");
+    actionSheet.classList.add("open");
+    actionSheet.inert = false;
+    actionSheet.setAttribute("aria-hidden", "false");
+    actionSheetOpen = true;
+  }
+  function closeActionSheet(){
+    if(!actionSheetOpen) return;
+    actionSheetOpen = false;
+    actionSheet.classList.remove("open");
+    actionSheet.inert = true;
+    actionSheet.setAttribute("aria-hidden", "true");
+    asBackdrop.classList.remove("open");
+    unlockScroll();
+    disarmReset();
+  }
+  asBackdrop.addEventListener("click", closeActionSheet);
+  $("as-cancel").addEventListener("click", closeActionSheet);
+
+  // ---------- 役割 ----------
+  document.querySelectorAll(".btn-menu").forEach(function(btn){
+    btn.addEventListener("click", openMenu);
+  });
+  function openMenu(){
+    openActionSheet([
+      { label: "役割を変える", icon: "arrow-left-right", onSelect: function(){
+        data.role = null;
+        saveData(data);
+        showView("view-role");
+        return false;
+      } },
+      { label: "データを全消去", icon: "trash-2", onSelect: function(btn){
+        // confirmは使わず2度押し
+        if(!resetArmed){
+          resetArmed = true;
+          btn.querySelector(".as-label").textContent = "もう一度押すと全消去します";
+          resetTimer = setTimeout(function(){
+            resetArmed = false;
+            if(btn.isConnected) btn.querySelector(".as-label").textContent = "データを全消去";
+          }, RESET_ARM_MS);
+          return true;
+        }
+        localStorage.removeItem(STORAGE_KEY);
+        disarmReset();
+        data = loadData();
+        showView("view-role");
+        showToast("データを初期化しました");
+        return false;
+      } }
+    ]);
+  }
+  function disarmReset(){
+    resetArmed = false;
+    if(resetTimer){ clearTimeout(resetTimer); resetTimer = null; }
+  }
+
+  $("role-refer").addEventListener("click", function(){ setRole("refer"); });
+  $("role-support").addEventListener("click", function(){ setRole("support"); });
 
   function setRole(role){
     data.role = role;
@@ -706,41 +1216,45 @@
     showView("view-refer-home");
   }
 
-  function supporterCardHtml(s){
-    return "<h3>" + escapeHtml(s.name) + "</h3>" +
-      '<div class="meta">得意: ' + escapeHtml(s.skill) + "</div>" +
-      '<div class="meta">対応: ' + escapeHtml(s.area) + "</div>" +
-      '<div class="comment">「' + escapeHtml(s.comment) + '」</div>' +
-      '<div class="stats">紹介 ' + s.referredCount + '件・決まった ' + s.decidedCount + '件</div>';
+  function supporterCellHtml(s){
+    return '<div class="cell cell-tap sup-cell" data-sup="' + escapeHtml(s.id) + '" role="button" tabindex="0">' +
+      '<span class="avatar">' + escapeHtml(initial(s.name)) + '</span>' +
+      '<div class="cell-main">' +
+        '<div class="cell-title">' + escapeHtml(s.name) + '</div>' +
+        '<div class="cell-sub">' + escapeHtml(s.skill) + '</div>' +
+        '<div class="cell-meta">' + icon("map-pin") + '<span>' + escapeHtml(s.area) + '</span></div>' +
+        '<div class="cell-meta">紹介 ' + (s.referredCount || 0) + ' ・ 決まった ' + (s.decidedCount || 0) + '</div>' +
+        (s.comment ? '<p class="cell-comment">' + escapeHtml(s.comment) + '</p>' : "") +
+      '</div>' +
+      '<button type="button" class="btn btn-mini">紹介する</button>' +
+    '</div>';
   }
 
   function renderReferList(){
-    var wrap = document.getElementById("refer-supporter-list");
-    var empty = document.getElementById("refer-empty");
+    var wrap = $("refer-supporter-list");
+    var empty = $("refer-empty");
     if(data.supporters.length === 0){
       wrap.innerHTML = "";
-      empty.style.display = "block";
+      empty.hidden = false;
       return;
     }
-    empty.style.display = "none";
-    wrap.innerHTML = "";
-    data.supporters.forEach(function(s){
-      var card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = supporterCardHtml(s);
-      var btn = document.createElement("button");
-      btn.className = "btn btn-primary btn-small";
-      btn.style.marginTop = "10px";
-      btn.textContent = "この人を紹介する";
-      btn.addEventListener("click", function(){
-        openReferDetail(s.id);
+    empty.hidden = true;
+    var html = '<div class="sec">';
+    data.supporters.forEach(function(s){ html += supporterCellHtml(s); });
+    html += "</div>";
+    wrap.innerHTML = html;
+    rewrap(wrap);
+    wrap.querySelectorAll("[data-sup]").forEach(function(cell){
+      var id = cell.getAttribute("data-sup");
+      cell.addEventListener("click", function(){ openReferDetail(id); });
+      cell.querySelector(".btn-mini").addEventListener("click", function(e){
+        e.stopPropagation();
+        openReferDetail(id);
       });
-      card.appendChild(btn);
-      wrap.appendChild(card);
     });
   }
 
-  document.getElementById("btn-invite-copy").addEventListener("click", function(){
+  $("btn-invite-copy").addEventListener("click", function(){
     var text = "◯◯さんって転職の相談乗ってるよね。\n" +
       "つなぐってアプリで自分のカード作っといてくれない？\n" +
       "仕事探してる子いたら回すわ\n" +
@@ -749,7 +1263,7 @@
     copyText(text);
   });
 
-  document.getElementById("btn-try-sample").addEventListener("click", function(){
+  $("btn-try-sample").addEventListener("click", function(){
     data.supporters.push({
       id: uid("sup"),
       name: "サンプル支援者",
@@ -767,61 +1281,72 @@
 
   function statusMeta(status){
     switch(status){
-      case "決まった！": return { emoji: "🎉", cls: "done" };
-      case "相談してるみたい": return { emoji: "💬", cls: "" };
-      case "別のところで決まった": return { emoji: "🙏", cls: "" };
-      case "見送り": return { emoji: "—", cls: "" };
-      default: return { emoji: "📤", cls: "" };
+      case STATUS_DONE: return { icon: "badge-check", done: true };
+      case "相談してるみたい": return { icon: "messages-square", done: false };
+      case "別のところで決まった": return { icon: "corner-up-right", done: false };
+      case "見送り": return { icon: "circle-minus", done: false };
+      default: return { icon: "send", done: false };
     }
   }
 
+  function recordCellHtml(r){
+    var supporter = findSupporter(r.supporterId);
+    var meta = statusMeta(r.status);
+    var title = (supporter ? escapeHtml(supporter.name) : "不明") + "さん";
+    if(r.friendName) title += " → " + escapeHtml(r.friendName) + "さん";
+    return '<div class="cell rec-cell" data-rec="' + escapeHtml(r.id) + '">' +
+      '<span class="status-ic' + (meta.done ? " done" : "") + '">' + icon(meta.icon) + '</span>' +
+      '<div class="cell-main">' +
+        '<div class="cell-title">' + title + '</div>' +
+        '<div class="t-foot l2">' + fmtDate(r.createdAt, true) + '</div>' +
+        (meta.done ? '<div class="cheer">' + icon("badge-check") + '<span>よかったね！</span></div>' : "") +
+        '<button type="button" class="status-pill" aria-haspopup="menu"><span>' + escapeHtml(r.status) + '</span>' + icon("chevron-down") + '</button>' +
+      '</div>' +
+    '</div>';
+  }
+
   function renderReferralRecords(){
-    var wrap = document.getElementById("referral-records");
+    var wrap = $("referral-records");
     if(data.referrals.length === 0){
-      wrap.innerHTML = '<div class="empty">まだ紹介の記録がありません</div>';
+      wrap.innerHTML = "";
       return;
     }
-    wrap.innerHTML = "";
     var sorted = data.referrals.slice().sort(function(a,b){
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
-    sorted.forEach(function(r){
-      var supporter = findSupporter(r.supporterId);
-      var meta = statusMeta(r.status);
-      var item = document.createElement("div");
-      item.className = "record-item" + (r.status === "決まった！" ? " celebrate" : "");
-      var dateStr = new Date(r.createdAt).toLocaleString("ja-JP", {month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit"});
-      var nameLine = supporter ? escapeHtml(supporter.name) : "不明";
-      if(r.friendName){
-        nameLine += " → " + escapeHtml(r.friendName) + "さん";
-      }
-      var badgeClass = "status-badge" + (meta.cls ? " " + meta.cls : "");
-      item.innerHTML =
-        '<div class="top"><strong>' + nameLine + '</strong>' +
-        '<span class="' + badgeClass + '">' + meta.emoji + " " + escapeHtml(r.status) + '</span></div>' +
-        '<div class="meta">' + dateStr + '</div>';
-      if(r.status === "決まった！"){
-        var celebrate = document.createElement("div");
-        celebrate.className = "celebrate-msg";
-        celebrate.textContent = "🎉 よかったね！紹介してくれてありがとう";
-        item.appendChild(celebrate);
-      }
-
-      var select = document.createElement("select");
-      select.className = "status-select";
-      STATUS_ORDER.forEach(function(st){
-        var opt = document.createElement("option");
-        opt.value = st;
-        opt.textContent = statusMeta(st).emoji + " " + st;
-        if(st === r.status) opt.selected = true;
-        select.appendChild(opt);
+    var html = '<div class="sec-head">紹介したあと</div><div class="sec">';
+    sorted.forEach(function(r){ html += recordCellHtml(r); });
+    html += "</div>";
+    wrap.innerHTML = html;
+    wrap.querySelectorAll(".rec-cell").forEach(function(cell){
+      var id = cell.getAttribute("data-rec");
+      cell.querySelector(".status-pill").addEventListener("click", function(){
+        openStatusMenu(id);
       });
-      select.addEventListener("change", function(){
-        updateReferralStatus(r.id, select.value);
-      });
-      item.appendChild(select);
-      wrap.appendChild(item);
     });
+  }
+
+  function openStatusMenu(referralId){
+    var r = findReferral(referralId);
+    if(!r) return;
+    openActionSheet(STATUS_ORDER.map(function(st){
+      var meta = statusMeta(st);
+      return {
+        label: st,
+        icon: meta.icon,
+        iconClass: meta.done ? "ac" : "",
+        checked: st === r.status,
+        onSelect: function(){
+          var wasDone = r.status === STATUS_DONE;
+          updateReferralStatus(referralId, st);
+          if(st === STATUS_DONE && !wasDone){
+            var cell = document.querySelector('.rec-cell[data-rec="' + referralId + '"]');
+            celebrate(cell);
+          }
+          return false;
+        }
+      };
+    }));
   }
 
   function updateReferralStatus(referralId, newStatus){
@@ -836,7 +1361,7 @@
       r.countedReferred = true;
     }
 
-    if(supporter && newStatus === "決まった！" && !r.countedDecided){
+    if(supporter && newStatus === STATUS_DONE && !r.countedDecided){
       supporter.decidedCount += 1;
       r.countedDecided = true;
     }
@@ -847,7 +1372,7 @@
     renderReceivedList();
   }
 
-  // ---------- 紹介1画面 ----------
+  // ---------- 紹介シート ----------
   var currentReferSupporterId = null;
   var currentRefId = null;
   var currentTone = "casual";
@@ -860,19 +1385,17 @@
     if(!s) return;
     currentReferSupporterId = supporterId;
     currentRefId = uid("ref") + Math.random().toString(36).slice(2, 6);
-    currentTone = "casual";
     referralCreatedForCurrentDetail = false;
     currentReferShortLink = null;
 
-    document.getElementById("refer-detail-name").textContent = s.name + "さんを紹介する";
-    document.getElementById("f-friend-name").value = "";
-    document.querySelectorAll(".tone-btn").forEach(function(b){
-      b.classList.toggle("active", b.getAttribute("data-tone") === "casual");
-    });
-    document.getElementById("btn-refer-share").style.display = (navigator.share ? "block" : "none");
+    $("refer-sheet-title").innerHTML = '<span>' + escapeHtml(s.name) + '</span><wbr><span>さんを紹介</span>';
+    $("f-friend-name").value = "";
+    $("refer-connection").innerHTML = connectionHtml("", s.name);
+    setTone("casual", true);
+    $("btn-refer-share").hidden = !navigator.share;
     regeneratePreview();
     fetchReferShortLink(s);
-    showView("view-refer-detail");
+    openSheet("sheet-refer");
   }
 
   function fetchReferShortLink(s){
@@ -895,38 +1418,41 @@
 
   function setReferSendButtonsBusy(busy){
     ["btn-refer-line", "btn-refer-copy", "btn-refer-share"].forEach(function(id){
-      var btn = document.getElementById(id);
+      var btn = $(id);
       if(!btn) return;
+      var label = btn.querySelector(".btn-label");
       btn.disabled = busy;
       if(busy){
-        btn.setAttribute("data-orig-text", btn.textContent);
-        btn.textContent = "準備中…";
+        label.setAttribute("data-orig-text", label.textContent);
+        label.textContent = "準備中…";
       }else{
-        var orig = btn.getAttribute("data-orig-text");
-        if(orig) btn.textContent = orig;
+        var orig = label.getAttribute("data-orig-text");
+        if(orig) label.textContent = orig;
       }
     });
   }
 
-  document.getElementById("btn-refer-back").addEventListener("click", openReferHome);
-
-  document.querySelectorAll(".tone-btn").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      currentTone = btn.getAttribute("data-tone");
-      document.querySelectorAll(".tone-btn").forEach(function(b){
-        b.classList.toggle("active", b === btn);
-      });
-      regeneratePreview();
+  var toneSeg = $("tone-seg");
+  function setTone(tone, silent){
+    currentTone = tone;
+    toneSeg.classList.toggle("polite", tone === "polite");
+    toneSeg.querySelectorAll(".tone-btn").forEach(function(b){
+      b.setAttribute("aria-selected", b.getAttribute("data-tone") === tone ? "true" : "false");
     });
+    if(!silent) regeneratePreview();
+  }
+  toneSeg.querySelectorAll(".tone-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){ setTone(btn.getAttribute("data-tone")); });
   });
 
-  document.getElementById("f-friend-name").addEventListener("input", regeneratePreview);
+  $("f-friend-name").addEventListener("input", regeneratePreview);
+  $("f-friend-name").addEventListener("input", updateReferConnection);
 
   // 文面プレビューは名前・トーンを変えるたびに作り直す（編集した内容はその時点で上書きされる簡略仕様）
   function regeneratePreview(){
     var s = findSupporter(currentReferSupporterId);
     if(!s) return;
-    var friendName = document.getElementById("f-friend-name").value.trim();
+    var friendName = $("f-friend-name").value.trim();
     var link = currentReferShortLink || (getLinkBase() + "?s=" + encodeSupporterParam({
       name: s.name, skill: s.skill, area: s.area, comment: s.comment, lineUrl: s.lineUrl
     }) + "&ref=" + currentRefId);
@@ -938,7 +1464,7 @@
       var line2 = s.name + "さんという、ご相談に乗ってくださる方がいます。";
       var skillLine = s.skill ? s.skill + "を得意とされている方です。\n" : "";
       var text = line1 + "\n" + line2 + "\n" + skillLine + "よろしければ一度お話ししてみてください。\n→ " + link;
-      document.getElementById("refer-detail-text").value = text;
+      $("refer-detail-text").value = text;
       return;
     }
 
@@ -946,14 +1472,14 @@
     var line2c = s.name + "さんって人が相談に乗ってくれるから、よかったら話してみて。";
     var skillLineC = s.skill ? s.skill + "が得意な人。\n" : "";
     var text2 = line1 + "\n" + line2c + "\n" + skillLineC + "知り合いだから安心して大丈夫。\n→ " + link;
-    document.getElementById("refer-detail-text").value = text2;
+    $("refer-detail-text").value = text2;
   }
 
   function ensureReferralCreated(){
     if(referralCreatedForCurrentDetail){
       return findReferral(currentRefId);
     }
-    var friendName = document.getElementById("f-friend-name").value.trim();
+    var friendName = $("f-friend-name").value.trim();
     var r = {
       id: currentRefId,
       supporterId: currentReferSupporterId,
@@ -970,22 +1496,25 @@
     return r;
   }
 
-  document.getElementById("btn-refer-line").addEventListener("click", function(){
+  $("btn-refer-line").addEventListener("click", function(){
     ensureReferralCreated();
-    var text = document.getElementById("refer-detail-text").value;
+    var text = $("refer-detail-text").value;
     window.open("https://line.me/R/share?text=" + encodeURIComponent(text), "_blank");
+    closeSheet();
     showToast("送りました。相手が相談したら、ここに出ます");
     openReferHome();
   });
 
-  document.getElementById("btn-refer-copy").addEventListener("click", function(){
+  $("btn-refer-copy").addEventListener("click", function(){
     ensureReferralCreated();
-    copyText(document.getElementById("refer-detail-text").value);
+    copyText($("refer-detail-text").value);
+    renderReferralRecords();
   });
 
-  document.getElementById("btn-refer-share").addEventListener("click", function(){
+  $("btn-refer-share").addEventListener("click", function(){
     ensureReferralCreated();
-    var text = document.getElementById("refer-detail-text").value;
+    renderReferralRecords();
+    var text = $("refer-detail-text").value;
     if(navigator.share){
       navigator.share({ text: text }).catch(function(){ /* ユーザーがキャンセルしただけ */ });
     }
@@ -1000,43 +1529,49 @@
     showView("view-support-home");
   }
 
-  function renderMyCard(){
-    var wrap = document.getElementById("mycard-preview");
-    var distributeBox = document.getElementById("mycard-distribute");
-    if(!data.myCard){
-      wrap.innerHTML = '<div class="empty">カードをまだ作っていません</div>';
-      distributeBox.style.display = "none";
-      return;
-    }
-    var c = data.myCard;
-    var card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = supporterCardHtml(c);
-    wrap.innerHTML = "";
-    wrap.appendChild(card);
-    distributeBox.style.display = "block";
+  function bigCardHtml(c){
+    return '<div class="big-card">' +
+      '<span class="avatar avatar-lg">' + escapeHtml(initial(c.name)) + '</span>' +
+      '<h2 class="t-title1 name">' + escapeHtml(c.name) + '</h2>' +
+      (c.skill ? '<p class="t-body l2 skill">' + escapeHtml(c.skill) + '</p>' : "") +
+      (c.area ? '<span class="chip">' + icon("map-pin") + '<span>' + escapeHtml(c.area) + '</span></span>' : "") +
+      (c.comment ? '<p class="comment">' + escapeHtml(c.comment) + '</p>' : "") +
+    '</div>';
   }
 
-  var mycardForm = document.getElementById("mycard-form");
-  document.getElementById("btn-open-mycard-form").addEventListener("click", function(){
-    var c = data.myCard;
-    document.getElementById("mc-name").value = c ? c.name : "";
-    document.getElementById("mc-skill").value = c ? c.skill : "";
-    document.getElementById("mc-area").value = c ? c.area : "";
-    document.getElementById("mc-comment").value = c ? c.comment : "";
-    document.getElementById("mc-line").value = c ? c.lineUrl : "";
-    mycardForm.style.display = "block";
-  });
-  document.getElementById("btn-cancel-mycard").addEventListener("click", function(){
-    mycardForm.style.display = "none";
-  });
+  function renderMyCard(){
+    var wrap = $("mycard-preview");
+    var hasCard = !!data.myCard;
+    $("mycard-empty").hidden = hasCard;
+    $("mycard-distribute").hidden = !hasCard;
+    $("btn-edit-card").hidden = !hasCard;
+    if(!hasCard){
+      wrap.innerHTML = "";
+      return;
+    }
+    wrap.innerHTML = bigCardHtml(data.myCard);
+    rewrap(wrap);
+  }
 
-  document.getElementById("btn-save-mycard").addEventListener("click", function(){
-    var name = document.getElementById("mc-name").value.trim();
-    var skill = document.getElementById("mc-skill").value.trim();
-    var area = document.getElementById("mc-area").value.trim();
-    var comment = document.getElementById("mc-comment").value.trim();
-    var lineUrl = document.getElementById("mc-line").value.trim();
+  function openCardEdit(){
+    var c = data.myCard;
+    $("mc-name").value = c ? c.name : "";
+    $("mc-skill").value = c ? c.skill : "";
+    $("mc-area").value = c ? c.area : "";
+    $("mc-comment").value = c ? c.comment : "";
+    $("mc-line").value = c ? c.lineUrl : "";
+    showView("view-card-edit");
+  }
+  $("btn-edit-card").addEventListener("click", openCardEdit);
+  $("btn-create-card").addEventListener("click", openCardEdit);
+  $("btn-cancel-mycard").addEventListener("click", openSupportHome);
+
+  $("btn-save-mycard").addEventListener("click", function(){
+    var name = $("mc-name").value.trim();
+    var skill = $("mc-skill").value.trim();
+    var area = $("mc-area").value.trim();
+    var comment = $("mc-comment").value.trim();
+    var lineUrl = $("mc-line").value.trim();
 
     if(!name || !skill){
       showToast("名前と得意分野は入力してください");
@@ -1056,8 +1591,7 @@
       // カード内容が変わったら btn-distribute クリック時に取り直しになる
     };
     saveData(data);
-    mycardForm.style.display = "none";
-    renderMyCard();
+    openSupportHome();
     showToast("カードを保存しました");
   });
 
@@ -1069,8 +1603,28 @@
       "使い方: " + getManualLink();
   }
 
-  var btnDistribute = document.getElementById("btn-distribute");
-  btnDistribute.addEventListener("click", function(){
+  // 長い URL は表示だけ1行に省略する。全文は data-text に持つ（コピー・LINE はそこから読む）
+  function setBubbleText(el, text){
+    el.setAttribute("data-text", text);
+    el.innerHTML = text.split("\n").map(function(line){
+      var m = line.match(/^(→ )(https?:\/\/\S+)$/);
+      if(m) return '<div class="url-line"><span>' + escapeHtml(m[1].trim()) + '</span><span class="url">' + escapeHtml(m[2]) + '</span></div>';
+      return '<div>' + (line ? escapeHtml(line) : "&nbsp;") + '</div>';
+    }).join("");
+  }
+  function getBubbleText(el){
+    return el.getAttribute("data-text") || el.textContent;
+  }
+
+  function setDistributeBusy(busy){
+    var box = $("distribute-text");
+    box.classList.toggle("loading", busy);
+    if(busy){ box.textContent = "準備中…"; box.removeAttribute("data-text"); }
+    ["btn-distribute-line", "btn-distribute-copy"].forEach(function(id){ $(id).disabled = busy; });
+  }
+
+  var distributeRequestSeq = 0;
+  $("btn-distribute").addEventListener("click", function(){
     if(!data.myCard){
       showToast("先にカードを作ってください");
       return;
@@ -1083,63 +1637,64 @@
 
     // 一度短縮したリンクはカードに保存して使い回す（カード内容が変わっていれば取り直す）
     if(c.distributeAddParam === addParam && c.distributeShortUrl){
-      document.getElementById("distribute-text").textContent = buildDistributeText(c.distributeShortUrl);
-      document.getElementById("distribute-generated").style.display = "block";
+      setDistributeBusy(false);
+      setBubbleText($("distribute-text"), buildDistributeText(c.distributeShortUrl));
+      openSheet("sheet-distribute");
       return;
     }
 
-    var origText = btnDistribute.textContent;
-    btnDistribute.disabled = true;
-    btnDistribute.textContent = "準備中…";
+    var seq = ++distributeRequestSeq;
+    setDistributeBusy(true);
+    openSheet("sheet-distribute");
     // 配布リンクの短縮は未対応の可能性がある。失敗時は長いURLのままにする（無理に対応しない）
     shortenLink({ add: addParam }).then(function(shortUrl){
+      if(seq !== distributeRequestSeq) return;
       var link = shortUrl || longLink;
       if(shortUrl){
         data.myCard.distributeAddParam = addParam;
         data.myCard.distributeShortUrl = shortUrl;
         saveData(data);
       }
-      document.getElementById("distribute-text").textContent = buildDistributeText(link);
-      document.getElementById("distribute-generated").style.display = "block";
-      btnDistribute.disabled = false;
-      btnDistribute.textContent = origText;
+      setDistributeBusy(false);
+      setBubbleText($("distribute-text"), buildDistributeText(link));
     });
   });
 
-  document.getElementById("btn-distribute-copy").addEventListener("click", function(){
-    copyText(document.getElementById("distribute-text").textContent);
+  $("btn-distribute-copy").addEventListener("click", function(){
+    copyText(getBubbleText($("distribute-text")));
   });
 
-  document.getElementById("btn-distribute-line").addEventListener("click", function(){
-    var text = document.getElementById("distribute-text").textContent;
+  $("btn-distribute-line").addEventListener("click", function(){
+    var text = getBubbleText($("distribute-text"));
     window.open("https://line.me/R/share?text=" + encodeURIComponent(text), "_blank");
   });
 
   function renderReceivedList(){
-    var wrap = document.getElementById("received-list");
+    var wrap = $("received-list");
+    var outer = $("received-wrap");
     if(!data.myCard){
-      wrap.innerHTML = '<div class="empty">まだいません</div>';
+      outer.hidden = true;
+      wrap.innerHTML = "";
       return;
     }
+    outer.hidden = false;
     var mine = data.referrals.filter(function(r){ return r.supporterId === data.myCard.id; });
     if(mine.length === 0){
-      wrap.innerHTML = '<div class="empty">まだいません</div>';
+      wrap.innerHTML = '<div class="sec"><div class="cell empty-cell">まだいません</div></div>';
       return;
     }
-    wrap.innerHTML = "";
+    var html = '<div class="sec">';
     mine.slice().sort(function(a,b){ return new Date(b.createdAt) - new Date(a.createdAt); }).forEach(function(r){
       var meta = statusMeta(r.status);
-      var item = document.createElement("div");
-      item.className = "record-item" + (r.status === "決まった！" ? " celebrate" : "");
-      var dateStr = new Date(r.createdAt).toLocaleString("ja-JP", {month:"numeric", day:"numeric"});
-      var nameLine = r.friendName ? escapeHtml(r.friendName) + "さん" : "（名前未設定）";
-      var badgeClass = "status-badge" + (meta.cls ? " " + meta.cls : "");
-      item.innerHTML =
-        '<div class="top"><strong>' + nameLine + '</strong>' +
-        '<span class="' + badgeClass + '">' + meta.emoji + " " + escapeHtml(r.status) + '</span></div>' +
-        '<div class="meta">' + dateStr + '</div>';
-      wrap.appendChild(item);
+      var nameLine = r.friendName ? escapeHtml(r.friendName) + "さん" : "（名前なし）";
+      html += '<div class="cell">' +
+        '<span class="status-ic' + (meta.done ? " done" : "") + '">' + icon(meta.icon) + '</span>' +
+        '<div class="cell-main"><div class="cell-title">' + nameLine + '</div><div class="t-foot l2">' + fmtDate(r.createdAt, false) + '</div></div>' +
+        '<span class="t-sub' + (meta.done ? " ac" : " l2") + '">' + escapeHtml(r.status) + '</span>' +
+      '</div>';
     });
+    html += "</div>";
+    wrap.innerHTML = html;
   }
 
   // ============================================================
@@ -1160,14 +1715,13 @@
 
   function showAddConfirm(card){
     pendingAddCard = card;
-    document.getElementById("add-confirm-name").textContent = card.name;
-    document.getElementById("add-confirm-skill").textContent = "得意: " + card.skill;
-    document.getElementById("add-confirm-area").textContent = "対応: " + (card.area || "");
-    document.getElementById("add-confirm-comment").textContent = card.comment ? "「" + card.comment + "」" : "";
+    var wrap = $("add-confirm-card");
+    wrap.innerHTML = bigCardHtml(card);
+    rewrap(wrap);
     showView("view-add-confirm");
   }
 
-  document.getElementById("btn-add-confirm-yes").addEventListener("click", function(){
+  $("btn-add-confirm-yes").addEventListener("click", function(){
     if(!pendingAddCard) return;
     var already = data.supporters.some(function(s){
       return s.name === pendingAddCard.name && s.skill === pendingAddCard.skill;
@@ -1191,7 +1745,7 @@
     openReferHome();
   });
 
-  document.getElementById("btn-add-confirm-no").addEventListener("click", function(){
+  $("btn-add-confirm-no").addEventListener("click", function(){
     pendingAddCard = null;
     if(!data.role){
       showView("view-role");
@@ -1200,6 +1754,17 @@
     }else{
       openSupportHome();
     }
+  });
+
+  // ============================================================
+  // 壊れたリンク
+  // ============================================================
+  function showBroken(){
+    showView("view-broken");
+  }
+  $("btn-broken-home").addEventListener("click", function(){
+    if(history.replaceState) history.replaceState(null, "", location.pathname);
+    init();
   });
 
   // ============================================================
@@ -1232,8 +1797,10 @@
     }
   }
 
+  var consultLineHandler = null;
   function renderConsultArea(){
-    var wrap = document.getElementById("consult-area");
+    var wrap = $("consult-area");
+    var bar = $("consult-bar");
     var refId = getRefParam();
     var referral = refId ? findReferral(refId) : null;
     var supporter = referral ? findSupporter(referral.supporterId) : null;
@@ -1255,85 +1822,49 @@
     }
 
     if(!supporter){
-      wrap.innerHTML = sResult.error
-        ? '<div class="empty">リンクが古いようです</div>'
-        : '<div class="empty">紹介リンクから開いてください</div>';
-      return;
+      bar.hidden = true;
+      if(sResult.error){
+        showBroken();
+        return false;
+      }
+      wrap.innerHTML = '<div class="empty"><span class="ico">' + icon("link") + '</span><h2 class="t-title3">紹介リンクから開いてください</h2></div>';
+      return true;
     }
 
     var byName = getByParam();
+    var html = connectionHtml(byName, supporter.name);
+    if(byName){
+      html += '<div class="by-chip"><span class="chip"><span>' + escapeHtml(byName) + 'さんからの紹介です</span></span></div>';
+    }
+    html += bigCardHtml(supporter);
+    html += '<div class="consult-foot stack">' +
+      '<p class="t-foot l2 center" style="margin:0 0 4px;">決まったら、紹介してくれた人に教えてあげてね</p>' +
+      '<button type="button" class="btn btn-text" id="btn-consult-done">決まった！を送る</button>' +
+    '</div>';
+    wrap.innerHTML = html;
+    rewrap(wrap);
 
-    wrap.innerHTML = "";
-    var big = document.createElement("div");
-    big.className = "card big-card";
-    var byHtml = byName ? '<div class="meta">' + escapeHtml(byName) + 'さんからの紹介です</div>' : "";
-    big.innerHTML =
-      byHtml +
-      '<div class="meta">紹介された支援者</div>' +
-      "<h2>" + escapeHtml(supporter.name) + "</h2>" +
-      '<div class="meta">得意: ' + escapeHtml(supporter.skill) + "</div>" +
-      '<div class="meta">対応: ' + escapeHtml(supporter.area) + "</div>" +
-      '<div class="comment">「' + escapeHtml(supporter.comment) + '」</div>';
-
-    var lineBtn = document.createElement("button");
-    lineBtn.className = "btn btn-primary";
-    lineBtn.style.marginTop = "14px";
-    lineBtn.textContent = "LINEで相談する";
-    lineBtn.addEventListener("click", function(){
-      if(supporter.lineUrl){
-        window.open(supporter.lineUrl, "_blank");
-      }else{
-        showToast("LINE連絡先が未設定です");
-      }
-      if(referral) updateReferralStatus(referral.id, "相談してるみたい");
-    });
-    big.appendChild(lineBtn);
-
-    var hint = document.createElement("div");
-    hint.className = "hint";
-    hint.style.marginTop = "16px";
-    hint.textContent = "決まったら紹介してくれた人に教えてあげてね";
-    big.appendChild(hint);
-
-    var doneBtn = document.createElement("button");
-    doneBtn.className = "btn btn-secondary btn-small";
-    doneBtn.style.marginTop = "8px";
-    doneBtn.textContent = "決まった！を送る";
-    doneBtn.addEventListener("click", function(){
+    $("btn-consult-done").addEventListener("click", function(){
       if(referral){
-        updateReferralStatus(referral.id, "決まった！");
+        updateReferralStatus(referral.id, STATUS_DONE);
       }
+      celebrate(this);
       showToast("紹介してくれた人に伝えました（試作なので画面内だけ）");
     });
-    big.appendChild(doneBtn);
 
-    wrap.appendChild(big);
+    var lineBtn = $("btn-consult-line");
+    var hasLine = !!supporter.lineUrl;
+    lineBtn.disabled = !hasLine;
+    $("consult-reason").hidden = hasLine;
+    if(consultLineHandler) lineBtn.removeEventListener("click", consultLineHandler);
+    consultLineHandler = function(){
+      window.open(supporter.lineUrl, "_blank");
+      if(referral) updateReferralStatus(referral.id, "相談してるみたい");
+    };
+    lineBtn.addEventListener("click", consultLineHandler);
+    bar.hidden = false;
+    return true;
   }
-
-  // ---------- データ全消去（confirmは使わず2度押し） ----------
-  function wireResetButton(btn, armedGetter, armedSetter){
-    btn.addEventListener("click", function(){
-      if(!armedGetter()){
-        armedSetter(true);
-        btn.textContent = "もう一度押すと全消去します";
-        setTimeout(function(){
-          armedSetter(false);
-          btn.textContent = "データ全消去";
-        }, 4000);
-        return;
-      }
-      localStorage.removeItem(STORAGE_KEY);
-      armedSetter(false);
-      btn.textContent = "データ全消去";
-      data = loadData();
-      showView("view-role");
-      showToast("データを初期化しました");
-    });
-  }
-  wireResetButton(document.getElementById("btn-reset"),
-    function(){ return resetArmed; }, function(v){ resetArmed = v; });
-  wireResetButton(document.getElementById("btn-reset-2"),
-    function(){ return resetArmed2; }, function(v){ resetArmed2 = v; });
 
   // ============================================================
   // 初期化: 起動時の分岐（1. ?s= 2. ?add= 3. 役割未設定 4. 役割のホーム）
@@ -1342,8 +1873,7 @@
     var params = new URLSearchParams(location.search);
 
     if(params.get("s") || (params.get("ref") && findReferral(params.get("ref")))){
-      renderConsultArea();
-      showView("view-consult");
+      if(renderConsultArea()) showView("view-consult");
       return;
     }
 
@@ -1354,7 +1884,8 @@
         return;
       }
       if(addResult.error){
-        showToast("リンクが壊れているようです");
+        showBroken();
+        return;
       }
     }
 
@@ -1371,6 +1902,66 @@
   }
 
   init();
+})();
+</script>
+<!--
+  budoux-wrap.html — 日本語テキストの「文節・単語の途中」での折り返しを防ぐ自己完結スニペット。
+  使い方: </body> 直前にこのファイルの中身をそのまま貼るだけ。
+  仕組み: Google BudouX（MIT License, Copyright 2021 Google LLC）の分かち書きモデルを
+  最小パーサーで実行し、DOMContentLoaded後に対象要素の文中に<wbr>（任意の改行可能位置）を挿入する。
+  MutationObserverは使わない（初期描画のみ・動的追加分は再実行が必要なら insertPhraseBreaks() を呼び直す）。
+  対象セレクタは BUDOUX_WRAP_SELECTOR で変更可（CSS側のセレクタも合わせて変える）。
+-->
+<style>
+h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,blockquote,figcaption{
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+  line-break:strict;
+}
+h1,h2,h3,h4,h5,h6{text-wrap:balance;}
+p,li,td,th,dt,dd,blockquote,figcaption{text-wrap:pretty;}
+</style>
+<script>
+(function(){
+'use strict';
+// BudouX (MIT License, Copyright 2021 Google LLC) - 日本語分かち書きモデル（ja）
+const BUDOUX_JA_MODEL={"UW3":{"。":7331,"の":4438,"、":5474,"に":4335,"を":6140,"が":4577,"は":4653,"と":3626,"る":3301,"も":3679,"で":3706,"た":2639,"な":2949,"て":2767,"う":2494,"く":2935,"い":2058,"ら":1690,"っ":-1794,"や":2604,"？":4334,"，":4119,"］":2440,"?":4664,"ば":2526,"ぐ":3001,"り":1280,"！":4003,"か":2214,"ん":1063,"．":2432,"]":3594,"ー":-197,"…":3125,"・":1048,"ど":1749,"お":-2026,"空":1563,"こ":183,"）":3330,"へ":2276,"つ":1371,"」":1822,"ッ":-2059,"方":888,"だ":1055,"☆":3592,"笑":3650,"ス":-861,"ン":-563,"「":-1977,"♪":2801,"ろ":1311,"イ":-908,"日":830,"ず":1808,"間":958,"々":2067,"部":542,"中":1200,"ゃ":1311,"今":1154,"ご":-1325,"京":-1379,"★":2952,"電":-1431,"分":1190,"す":1109,"ぬ":2615,"あ":1168,"感":738,"大":-1219,"人":341,"プ":-1102,"フ":-1375,"上":625,"せ":688,"ぁ":1694,"０":-805,"度":1238,"後":1303,"〜":956,"ア":-1107,"む":1491,"観":-957,"時":185,"１":-1318,"き":484,"都":-296,"以":-984,"ぶ":1284,"然":1170,"え":910,"わ":-220,"ラ":-281,"”":1246,"新":-866,"超":1609,"カ":-553,"夜":1518,"体":891,"ト":-93,"ロ":-757,"し":407,"変":779,"み":505,"[":-1045,"ド":-561,"択":970,"昔":1709,"シ":-735,"［":-768,"ジ":-176,"味":546,"光":-318,"ち":592,"『":-837,"タ":-162,"品":129,"さ":-84,"ま":-43,"年":339,"皆":969,"秋":1113,"的":430,"段":56,"水":342,"ぞ":1024,"果":361,"ぱ":723,"よ":608,"学":-397,"　":451,"じ":533,"自":-336,"ｏ":-464,"区":924,"題":809,"最":-519,"料":-412,"用":-416,"れ":190,"バ":-268,"ね":723,"機":-217,"：":381,"系":687,"け":117,"発":-399,"番":289,"色":486,"程":505,"行":-355,"意":-122,"技":209,"別":234,"デ":-279,"斤":509,"所":345,"場":-68,"】":480,"ニ":-140,"レ":-180,"子":-211,"入":-192,"台":499,"テ":-147,"ク":110,"素":-168,"前":192,"』":284,"週":143,"月":112,"不":-86,"開":-90,"モ":-107,"作":-90,"選":-102,"始":-93,"現":-76,"生":-55,"代":-63,"５":-59,"能":-29,"ビ":-4},"UW4":{"の":-4526,"。":-7835,"に":-4664,"が":-4054,"、":-8150,"て":-3970,"は":-3843,"で":-3133,"る":-5856,"と":-3243,"を":-5179,"っ":-4802,"か":-2915,"り":-4632,"ま":-1687,"な":-2126,"た":-2016,"う":-2712,"お":892,"し":-1935,"い":-1550,"ら":-5271,"そ":429,"だ":-2260,"れ":-4518,"す":-1699,"ん":-4492,"あ":255,"ち":-2389,"ー":-2954,"き":-1830,"」":-6475,"も":-2930,"よ":-1377,"「":2346,"け":-3754,"見":1092,"ご":293,"や":-1377,"く":-3063,"思":1144,"み":-907,"大":654,"私":1972,"一":569,"人":514,"？":-5720,"さ":-1760,"[":3554,"行":434,"め":-2463,"ン":-2274,"』":-5072,"こ":-507,"！":-5229,"ッ":-2340,"，":-4881,"わ":-1719,"・":-1475,"じ":-2491,"京":392,"今":1470,"?":-4390,"ぐ":-1842,"せ":-1969,"え":-2262,"１":1027,"言":351,"（":2718,"『":982,"使":851,"時":454,"合":-1661,"食":294,"日":280,"べ":-3191,"何":717,"デ":615,"ル":-1129,"ろ":-3124,"…":-3150,"．":-3345,"ば":-2646,"空":1226,"自":699,"笑":-3433,"２":820,"リ":-1047,"つ":-1268,"［":1713,"場":401,"効":71,"広":493,"）":-4245,"煙":2026,"ず":-2065,"来":130,"帯":-1165,"]":-1443,"ゃ":-2623,"最":996,"多":1189,"ど":-885,"ね":-2484,"び":-1816,"綺":2459,"エ":271,"携":168,"手":154,"］":-1515,"良":87,"ゆ":-825,"間":-755,"ぁ":-1624,"タ":-298,"ぶ":-1703,"ょ":-2028,"ぎ":-1605,"ひ":541,"方":-465,"”":-1348,"特":1097,"ト":-346,"ス":-149,"０":-431,"〜":-1764,"的":-991,"青":798,"♪":-2039,"僕":1126,"書":572,"イ":-143,"☆":-1767,"用":-630,"能":-732,"カ":231,"ュ":-807,"ぼ":-972,"ざ":-1085,"無":336,"む":-1336,"フ":-334,"公":376,"不":696,"ぜ":-1481,"バ":308,"へ":-1023,"　":-1382,"制":794,"回":-1175,"本":-124,"小":747,"水":329,"ぞ":-1226,"ロ":-279,"入":129,"続":-656,"物":-311,"返":-364,"新":311,"二":611,"美":260,"ほ":-328,"ｏ":-633,"足":704,"少":273,"取":-531,"機":-118,"臭":1197,"誰":1040,"街":558,"３":435,"げ":-906,"友":102,"づ":-795,"換":-690,"ク":-240,"ド":-300,"夏":522,"話":371,"祭":558,"気":95,"姿":158,"系":259,"コ":64,"楽":372,"服":869,"東":710,"込":-604,"年":-375,"(":654,"ニ":-238,"高":107,"切":-376,"他":181,"★":-844,"真":-503,"【":585,"表":166,"ビ":-158,"グ":-141,"有":295,"４":-215,"聞":199,"父":403,"代":-114,"買":225,"全":87,"通":-66,"品":-202,"度":-229,"四":276,"Ｓ":-143,"森":-428,"狭":264,"情":-106,"彼":83,"動":-34,"甘":151,"頑":176,"オ":68,"鞍":112,"ム":-77,"参":98,"実":60,"声":85,"秋":127,"例":106,"＾":-122,"ジ":-8,"ミ":-33,"心":12,"券":-37,"住":8,"ふ":-16,"春":8,"修":4,"ぃ":-4},"UW5":{"。":-2134,"、":-1080,"な":-632,"っ":1246,"は":-1048,"に":-767,"で":-961,"き":1101,"と":-894,"す":-696,"る":514,"を":-806,"い":360,"え":727,"の":-889,"べ":1996,"ま":-98,"じ":744,"こ":125,"た":-31,"し":-331,"ん":946,"そ":-665,"れ":462,"か":195,"動":1439,"ラ":547,"・":-945,"あ":-394,"め":528,"帯":334,"つ":1095,"う":444,"日":575,"京":78,"さ":-303,"能":88,"ル":-699,"」":-1096,"が":-597,"力":339,"せ":-438,"ぼ":1438,"ト":-388,"ず":812,"わ":588,"り":187,"ン":-260,"く":352,"年":968,"だ":-485,"思":-359,"も":-205,"ち":522,"］":-422,"使":-1252,"器":-220,"ざ":335,"ろ":-67,"よ":-284,"て":220,"！":-311,"利":781,"上":-402,"ス":-271,"体":-1449,"．":-224,"水":-443,"ぎ":320,"当":628,"ら":181,"び":609,"む":810,"イ":124,"バ":-71,"電":-205,"大":-275,"[":-434,"的":-264,"作":365,"言":-236,"ュ":-257,"先":-797,"景":340,"寺":-278,"…":-209,"？":-240,"本":178,"葉":186,"一":-197,"々":237,"顔":-329,"グ":-120,"丈":333,"越":-763,"Ｎ":786,"へ":-282,"ャ":51,"ど":-9,"回":193,"デ":-192,"見":-57,"１":-114,"開":78,"２":-134,"行":-34,"面":34,"要":33,"ロ":25,"オ":-25,"目":-46,"定":12},"UW2":{"。":-1584,"の":-942,"、":-1540,"を":-2488,"に":-1161,"し":200,"か":-9,"と":-1218,"も":-961,"が":-837,"な":-420,"っ":127,"で":-1025,"ま":338,"れ":-90,"て":-939,"そ":-483,"お":-1202,"以":2491,"す":413,"だ":372,"一":1244,"全":1268,"さ":708,"く":-729,"う":-611,"少":606,"は":-1052,"い":-145,"手":1408,"ん":250,"」":209,"け":159,"こ":-30,"見":-308,"め":65,"特":868,"結":2129,"あ":-194,"食":261,"つ":-595,"毎":1534,"法":1473,"場":274,"ゆ":805,"わ":317,"ラ":-534,"同":511,"ほ":708,"関":1438,"る":-407,"味":500,"人":75,"良":243,"ひ":-2178,"多":560,"選":185,"や":-625,"水":732,"知":-961,"ど":-234,"イ":-161,"「":-347,"た":-274,"ぱ":267,"随":1550,"？":-621,"ご":-501,"容":1349,"ぜ":931,"サ":-568,"ー":216,"グ":-454,"取":-414,"目":-759,"み":-120,"裏":-14,"能":348,"パ":668,"り":-229,"０":115,"本":556,"我":-831,"境":-297,"１":180,"ば":-327,"２":-241,"ろ":-200,"ね":354,"デ":-497,"ぐ":-455,"メ":-40,"和":646,"，":-526,"ノ":495,"大":152,"ぶ":85,"］":-262,"シ":-433,"立":-473,"世":-338,"先":378,"ケ":-522,"き":-115,"級":771,"＾":102,"?":-408,"４":326,"安":-94,"甘":11,"バ":426,"々":206,"電":268,"３":-291,"ら":-70,"是":440,"ル":47,"格":548,"Ｐ":-648,"団":696,"言":-5,"新":-139,"［":-89,"三":429,"家":142,"…":239,"落":-546,"作":-19,"下":296,"最":225,"ジ":-135,"素":-443,"文":116,"許":538,"早":222,"車":84,"★":-399,"如":479,"]":-173,"昔":260,"直":295,"奇":205,"『":-228,"百":-157,"Ｈ":-144,"レ":-113,"次":-183,"生":87,"残":151,"敗":159,"５":-128,"買":-17,"案":141,"空":-34,"鹿":-135,"ド":42,"介":97,"ア":-29,"用":-25,"げ":8},"UW1":{"い":-138,"に":-390,"で":-289,"つ":315,"と":124,"の":67,"が":-210,"は":-176,"よ":87,"そ":183,"り":-106,"見":231,"て":146,"な":-212,"す":202,"う":103,"ん":204,"知":91,"た":-112,"携":-314,"か":-187,"始":733,"バ":394,"十":-269,"上":-140,"く":165,"水":173,"、":18,"［":-544,"タ":247,"プ":-787,"明":905,"ッ":426,"き":-8,"ス":-209,"イ":-459,"０":234,"大":276,"。":-26,"リ":339,"っ":198,"ち":243,"安":-460,"３":-303,"日":25,"．":-438,"ど":197,"こ":160,"る":-82,"や":-248,"話":-147,"メ":422,"ろ":336,"自":371,"効":642,"小":284,"オ":507,"れ":118,"長":668,"行":-36,"壊":-428,"時":-212,"え":-105,"間":281,"機":118,"新":159,"『":-555,"・":52,"作":114,"ャ":280,"！":68,"認":-245,"個":-228,"撮":-122,"何":169,"し":-22,"京":-106,"苦":-506,"」":-119,"取":106,"も":13,"右":202,"少":-110,"人":-65,"豊":252,"ざ":100,"進":156,"２":69,"ン":17,"内":-171,"ね":-51,"積":-93,"議":34,"基":-37,"ｏ":-12,"]":-25,"ニ":20,"ケ":-8,"を":-4,"生":-4,"ク":-4},"UW6":{"。":-308,"が":369,"の":138,"で":160,"さ":944,"な":226,"に":327,"を":154,"は":202,"し":463,"や":638,"う":237,"っ":486,"り":513,"ぱ":1094,"か":312,"も":109,"」":-190,"い":346,"み":702,"せ":-301,"空":972,"め":913,"と":34,"る":182,"お":-401,"つ":696,"グ":789,"け":-219,"ー":-162,"ど":60,"コ":192,"場":-573,"こ":119,"そ":54,"ん":349,"く":131,"ま":413,"タ":331,"ン":-343,"０":693,"的":366,"ス":27,"ク":-300,"れ":167,"電":358,"人":-95,"ろ":464,"気":563,"送":-1624,"よ":267,"付":53,"・":-200,"画":407,"パ":-559,"わ":268,"見":-162,"返":1149,"１":119,"地":530,"ュ":224,"水":898,"出":534,"思":-178,"：":586,"ば":40,"遊":-497,"ル":188,"供":-427,"込":474,"て":-65,"過":246,"デ":-202,"］":-115,"最":-248,"ぎ":604,"学":-426,"カ":194,"寺":325,"制":372,"言":-223,"シ":-177,"た":27,"来":-111,"ょ":-238,"自":216,"じ":116,"日":36,"亭":407,"ず":-131,"だ":-42,"方":-77,"家":-115,"ブ":29,"び":59,"ピ":33,"新":-4},"TW1":{"よいよ":3595,"もはや":2606,"またま":3831,"ありが":-2684,"という":412,"おって":3070,"で見る":-2977,"こんに":-455,"ような":1127,"んどん":1519,"が良い":786,"・・・":1415,"ていく":997,"いとこ":-808,"ふだん":2004,"ました":-1069,"できる":396,"かなり":1990,"だんど":-1554,"すきと":-3102,"甘えが":-1234,"やはり":2033,"その時":2086,"、それ":675,"ながら":1161,"ひとつ":1367,"とんど":763,"ない、":-1607,"なんと":-1121,"かなか":752,"でかけ":-656,"ことも":-358,"持って":-1039,"十分に":-364,"ょうど":827,"たまた":-714,"しかし":752,"っかり":783,"に来て":667,"ょっと":-325,"る」と":-946,"困った":693,"として":267,"くらい":189,"ていて":254,"かった":-96,"は一つ":-707,"もなく":113,"なって":-94,"そして":174,"レベル":366,"は正直":339,"くさん":213,"入れる":260,"ろいろ":177,"すごく":312,"。夕方":161,"おけば":147,"んでも":128,"まるで":85,"のうち":148,"にして":-46,"と思う":16,"ういう":20,"のバス":20,"。ただ":16},"BW2":{"とこ":-1757,"とい":180,"せく":6048,"ない":-3413,"てい":-1546,"とお":-2638,"です":-2940,"たと":680,"であ":-3442,"ので":-1978,"のみ":-3030,"いよ":-3030,"てお":-2172,"にも":-1394,"うご":1924,"でき":-2187,"、と":-1273,"でも":-1946,"など":-2282,"たま":-1297,"たい":-2164,"くな":-1776,"には":-791,"帯電":-1412,"でし":-1822,"くだ":-2195,"のが":-1144,"のだ":-1038,"うど":-1919,"てき":-2092,"もし":-920,"いと":-940,"てみ":-2185,"はじ":-2168,"のは":-1264,"本イ":2005,"の前":-1526,"いも":784,"い合":-1523,"いた":-1271,"うや":-1100,"いい":-928,"らな":-254,"てく":-1211,"いま":-851,"やす":-1370,"がち":-83,"らゆ":-1056,"ると":-596,"てあ":-2151,"て行":-2250,"した":-768,"人い":1504,"なく":-852,"もあ":-595,"のも":-925,"のか":-634,"のい":303,"徴エ":1381,"どこ":-794,"ても":-606,"ただ":-1376,"を返":-1669,"とも":-606,"とき":-767,"び上":1661,"なか":-495,"とか":-1075,"はい":-834,"のご":-1134,"」と":-433,"るよ":-228,"とめ":-460,"にし":-486,"すご":-996,"なあ":-1506,"でな":-1219,"いな":-407,"。笑":-1204,"くし":-714,"こし":365,"の１":-1747,"係な":620,"い日":416,"ども":-531,"では":-618,"し…":1799,"」で":936,"う映":394,"とと":-657,"いし":-713,"しい":-305,"かな":-357,"にな":-75,"はあ":-507,"がっ":-488,"もな":-16,"が観":-950,"てこ":-172,"、な":-323,"なぁ":-494,"かし":-379,"よい":-566,"はず":-582,"グと":780,"すも":529,"・・":-386,"いつ":-178,"らい":-353,"もつ":-361,"とは":-348,"気な":330,"でい":-203,"たち":-269,"日と":374,"日本":-309,"て欲":-466,"るな":-264,"りな":227,"の方":159,"がし":72,"うい":-216,"にぎ":-250,"もう":-171,"］私":-479,"中さ":322,"たし":-230,"るの":-108,"てや":-142,"そこ":-275,"にこ":-198,"たも":103,"て来":-232,"れた":-94,"ルや":137,"るし":-128,"中だ":114,"たな":-80,"るが":-80,"ぱな":67,"るか":-29,"、清":-33,"がの":29,"たよ":-20,"．９":-24},"BW3":{"こと":1175,"いう":790,"もの":3907,"いい":1123,"その":2329,"ちは":-1191,"この":2317,"まと":1846,"おで":1062,"とき":2382,"はじ":2407,"して":218,"うま":3341,"よう":-1314,"ちょ":2198,"これ":2270,"ある":-287,"なっ":-601,"でも":1755,"なる":316,"とい":-754,"受け":890,"上が":1264,"なん":292,"可能":95,"が、":1559,"そう":-1883,"とて":2483,"でき":917,"おり":-1380,"もら":2822,"かか":1930,"メー":450,"当日":2335,"たま":1011,"から":-1032,"で、":1140,"かけ":2176,"よく":1416,"さん":-2110,"ため":1069,"しま":-296,"ゆる":-896,"もう":2304,"とも":1246,"分か":1490,"かっ":-1165,"ます":-772,"です":-903,"すご":1542,"もん":1103,"より":-1170,"すぐ":1632,"機器":-1682,"した":907,"ない":481,"しい":-957,"ころ":-297,"が観":2221,"とっ":875,"まし":-943,"いて":-460,"あと":1228,"がん":1905,"・・":-1620,"さい":-807,"つな":1280,"とり":1101,"まぁ":1446,"いろ":404,"はま":1074,"しゃ":381,"つぶ":642,"なら":-409,"いか":663,"だけ":-754,"みた":-1184,"はず":770,"だろ":-1479,"うち":552,"わか":660,"デザ":565,"はる":721,"いま":563,"と思":-575,"にぎ":723,"なく":402,"始ま":217,"きま":-605,"さあ":662,"もと":1138,"まだ":610,"おす":397,"つい":573,"かも":-592,"あり":115,"日が":472,"すか":-409,"きる":-925,"ぼっ":-1028,"何で":454,"ええ":1084,"もつ":721,"たっ":576,"なか":235,"以上":-395,"こそ":-557,"出来":-628,"たい":-166,"とこ":408,"ルー":311,"みん":529,"まも":279,"ひと":380,"はし":709,"なさ":208,"どこ":399,"一に":-695,"ごと":-287,"しか":-210,"し、":-70,"アプ":55,"いら":361,"入れ":90,"入場":413,"なに":319,"んで":260,"行く":169,"とら":456,"もっ":336,"まで":-296,"そし":356,"つけ":355,"電話":-44,"ただ":293,"変え":271,"すき":240,"最近":148,"こん":-92,"通り":-261,"など":-117,"友人":108,"ませ":-117,"つき":394,"ぼれ":-380,"かき":293,"電車":82,"いた":-26,"みろ":115,"書い":132,"いる":55,"そく":-136,"使っ":72,"色は":110,"祭り":84,"だい":46,"あふ":84,"こだ":50,"しく":-63,"ほど":-33,"いつ":20},"BW1":{"から":1722,"しい":1439,"ない":1248,"のみ":2935,"んに":-1214,"れた":1317,"いう":530,"とか":1792,"まま":2275,"もは":-3656,"その":-1266,"こと":-1663,"るの":-1335,"よう":-711,"少し":1794,"」と":261,"ても":825,"のは":1264,"して":-150,"うな":592,"、真":4785,"たい":724,"んな":247,"たら":1203,"では":-294,"つな":-1587,"より":1697,"でも":881,"かも":-1721,"まも":-3453,"最近":1892,"この":-1192,"には":454,"んだ":781,"った":226,"たと":-1187,"。・":2850,"たの":-1057,"とが":-1312,"白い":1354,"かし":1573,"もう":1545,"くれ":2314,"が、":1142,"やく":1335,"とき":2050,"全部":695,"とこ":-63,"。」":2184,"おで":-3878,"は、":931,"まと":-1866,"にも":628,"んで":-494,"とで":1529,"なら":1187,"気に":-333,"もの":-627,"い、":-391,"ちが":-674,"こそ":1536,"ただ":1271,"思い":-1500,"晶の":2483,"もし":1384,"なぐ":1197,"同じ":1197,"のが":916,"けど":753,"あー":1779,"で、":433,"うに":-49,"がと":-955,"りゃ":1760,"まだ":776,"いと":-291,"の間":1507,"よく":582,"なぜ":1651,"てい":-500,"た．":1552,"神社":931,"した":325,"人気":1231,"だけ":600,"かけ":-34,"とう":147,"いで":-1082,"まり":470,"れて":-371,"りと":700,"青い":473,"くて":727,"、今":805,"れが":-562,"の後":977,"２、":-2026,"きた":487,"使い":-992,"普段":718,"きの":-962,"やら":986,"いの":-221,"と、":348,"的な":365,"るに":-612,"との":460,"買い":-753,"問い":-436,"ック":270,"いい":-393,"なく":334,"ので":225,"など":623,"取り":-456,"れる":60,"いも":-807,"べき":989,"ると":91,"か，":-1339,"ぶん":673,"効果":1280,"甘味":569,"ころ":485,"、と":308,"是非":377,"パサ":476,"０円":353,"ゃあ":661,"安に":-718,"らな":-591,"寺、":-1144,"かき":580,"めて":147,"分け":593,"言い":-567,"お店":690,"現在":554,"すい":112,"か、":-371,"世の":-645,"うや":-287,"で…":831,"の上":743,"＾＾":408,"だし":582,"わけ":398,"てる":202,"うか":240,"っと":-33,"えば":240,"める":-175,"ろう":-374,"いた":151,"は頭":928,"ｏｒ":446,"待ち":-469,"ため":514,"さん":64,"絶対":443,"ぱり":286,"ねー":307,"て、":9,"知る":-254,"んて":156,"舞う":328,"こう":-168,"うえ":425,"のも":124,"だん":128,"じて":203,"りは":-290,"とは":-110,"リー":157,"４日":102,"とも":-76,"ここ":100,"すが":-69,"とい":-78,"いし":148,"本語":178,"ては":-102,"すの":-60,"人、":-214,"ほぼ":149,"使う":89,"せん":59,"大変":8,"法的":67,"す☆":58,"空き":-54,"持て":-79,"なー":37,"以上":29,"しか":4,"に水":25,"離宮":29,"たり":4},"TW2":{"いとこ":-3730,"してお":-1405,"ではな":-1947,"気に入":-3717,"ちがう":-1802,"分にあ":-2591,"そのま":-1448,"うにな":-974,"んでい":-1891,"そもそ":-1950,"ではあ":-1780,"どんど":-903,"とがあ":-1081,"れはそ":-1417,"女の子":-1717,"国人が":989,"っての":1292,"らと言":-1185,"ようや":-538,"からな":-624,"てもい":-1357,"でもあ":-1421,"からし":556,"ような":-503,"んなん":1024,"ともあ":-687,"でもな":-1053,"その後":-629,"まるで":-281,"れるこ":266,"それ以":261,"とにな":-327,"ものす":-823,"したこ":-283,"っとい":-404,"ってこ":-220,"しかな":308,"のに対":-259,"とがで":-200,"るにつ":-106,"んなこ":-87,"という":-25,"かもし":-8,"いい感":-8},"TW4":{"ところ":3232,"ありが":2595,"もはや":3296,"どのよ":3827,"ような":-1762,"ようや":3170,"ある。":-583,"くらい":1946,"可能性":2270,"いよい":1454,"ことが":-1192,"しかし":2054,"プログ":1692,"が、そ":1483,"ちがう":2357,"とおり":2028,"した。":-1506,"かなり":2324,"うどん":2043,"あるい":-3230,"いっぱ":1905,"ことに":-1257,"ありま":-963,"だって":1379,"で、そ":1288,"しゃべ":1977,"ことで":319,"してお":1218,"できた":1495,"いろい":1055,"ように":-955,"ことも":-948,"わけで":-622,"おりに":-451,"ない。":218,"ちなみ":1830,"なんと":1084,"やって":185,"だった":-1408,"そうで":-738,"ってこ":412,"とこが":1173,"でも、":468,"して人":-1146,"の京都":548,"なんて":-477,"いかな":448,"こと。":569,"いって":-314,"おりま":1584,"これは":1089,"かけら":645,"いけな":-428,"ことを":358,"なんか":476,"はじま":343,"そのま":373,"ひとつ":84,"すると":228,"勝手に":850,"ことは":-267,"ないと":261,"いえば":439,"でもま":632,"しない":213,"どんど":429,"かった":-228,"とこ取":-230,"メール":47,"いまし":-289,"いくさ":-203,"ようで":-254,"はまっ":90,"なかな":111,"いくら":132,"います":-119,"さらに":42,"あるも":46,"京都に":25,"あたり":-4},"TW3":{"という":530,"のよう":-1023,"ている":-2512,"、そし":-3799,"のまま":-494,"ること":-336,"てしま":-1783,"すこと":899,"らない":-1576,"の本は":-1332,"になっ":-458,"ーした":1308,"とした":-1399,"と言っ":-1426,"のよい":597,"である":-911,"」って":906,"はまっ":-1300,"てほし":-994,"ばいい":-1221,"はない":-473,"と同時":-1341,"として":91,"であっ":-1154,"ところ":-834,"ていう":514,"、また":-825,"ておき":-625,"る方は":-700,"ういう":-635,"ととも":-485,"はそれ":-601,"といっ":-29,"にでも":-638,"てない":-314,"くして":-289,"たこと":-68,"といい":-466,"のこの":-157,"があっ":109,"，それ":-71,"にする":-20,"になる":-8}};
+// BudouX (MIT License, Copyright 2021 Google LLC) - minimal inline parser for Japanese phrase-safe line breaks
+class BudouXParser{constructor(model){this.model=new Map(Object.entries(model).map(([k,v])=>[k,new Map(Object.entries(v))]));this.baseScore=-0.5*[...this.model.values()].flatMap(g=>[...g.values()]).reduce((a,b)=>a+b,0);}
+ parseBoundaries(sentence){const result=[];const g=k=>this.model.get(k);const uw1=g('UW1'),uw2=g('UW2'),uw3=g('UW3'),uw4=g('UW4'),uw5=g('UW5'),uw6=g('UW6'),bw1=g('BW1'),bw2=g('BW2'),bw3=g('BW3'),tw1=g('TW1'),tw2=g('TW2'),tw3=g('TW3'),tw4=g('TW4');
+  for(let i=1;i<sentence.length;i++){let score=this.baseScore;
+   score+=(uw1&&uw1.get(sentence.substring(i-3,i-2)))||0;score+=(uw2&&uw2.get(sentence.substring(i-2,i-1)))||0;score+=(uw3&&uw3.get(sentence.substring(i-1,i)))||0;score+=(uw4&&uw4.get(sentence.substring(i,i+1)))||0;score+=(uw5&&uw5.get(sentence.substring(i+1,i+2)))||0;score+=(uw6&&uw6.get(sentence.substring(i+2,i+3)))||0;
+   score+=(bw1&&bw1.get(sentence.substring(i-2,i)))||0;score+=(bw2&&bw2.get(sentence.substring(i-1,i+1)))||0;score+=(bw3&&bw3.get(sentence.substring(i,i+2)))||0;
+   score+=(tw1&&tw1.get(sentence.substring(i-3,i)))||0;score+=(tw2&&tw2.get(sentence.substring(i-2,i+1)))||0;score+=(tw3&&tw3.get(sentence.substring(i-1,i+2)))||0;score+=(tw4&&tw4.get(sentence.substring(i,i+3)))||0;
+   if(score>0)result.push(i);}
+  return result;}}
+const budouxParser=new BudouXParser(BUDOUX_JA_MODEL);
+const ASCII_WORD=/[A-Za-z0-9]/;
+// 禁則: 開き括弧の直後・閉じ括弧や句読点の直前の折り返し位置は、括弧の前・句読点の後へずらす（このプロジェクトで追加）
+const NO_BREAK_AFTER=/[「『（【［〈《〔｛(\[{]/;
+const NO_BREAK_BEFORE=/[」』）】］〉》〕｝)\]}、。，．・：；！？!?ー〜…]/;
+// 対象セレクタ。変更する場合はCSS側の対応セレクタも揃えること
+const BUDOUX_WRAP_SELECTOR='h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,blockquote,figcaption';
+function insertPhraseBreaks(root){
+ (root||document).querySelectorAll(BUDOUX_WRAP_SELECTOR).forEach(elm=>{
+  Array.from(elm.childNodes).forEach(node=>{
+   if(node.nodeType!==Node.TEXT_NODE||!node.textContent)return;
+   const text=node.textContent;
+   const boundaries=[...new Set(budouxParser.parseBoundaries(text).map(b=>{while(b>1&&NO_BREAK_AFTER.test(text[b-1]))b--;while(b<text.length-1&&NO_BREAK_BEFORE.test(text[b]))b++;return b;}))].filter(b=>b>0&&b<text.length&&!(ASCII_WORD.test(text[b-1])&&ASCII_WORD.test(text[b]))).sort((a,b)=>a-b);
+   if(!boundaries.length)return;
+   const frag=document.createDocumentFragment();let start=0;
+   boundaries.forEach(b=>{frag.append(text.slice(start,b),document.createElement('wbr'));start=b;});
+   frag.append(text.slice(start));
+   node.replaceWith(frag);
+  });
+ });
+}
+window.insertPhraseBreaks=insertPhraseBreaks;
+if(document.readyState==='loading'){
+ document.addEventListener('DOMContentLoaded',()=>insertPhraseBreaks());
+}else{
+ insertPhraseBreaks();
+}
 })();
 </script>
 </body>
