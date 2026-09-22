@@ -8,7 +8,7 @@ enum Symbol {
     static let support = "briefcase.fill"
     static let help = "questionmark.circle"
     static let menu = "ellipsis.circle"
-    static let area = "mappin.and.ellipse"
+    static let area = "mappin"
     static let sent = "paperplane.fill"
     static let consulting = "bubble.left.and.bubble.right.fill"
     static let hired = "checkmark.seal.fill"

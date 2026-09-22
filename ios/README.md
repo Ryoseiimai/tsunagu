@@ -34,12 +34,17 @@ CoreChecksは一時ファイルと専用UserDefaultsだけを使い、日本語�
 ```sh
 xcrun simctl install <UDID> DerivedData/Build/Products/Debug-iphonesimulator/Tsunagu.app
 python3 Scripts/screenshots.py <UDID>
+# 今回の指定2枚だけをライトで撮る（紹介シートの名前は既定で「たかし」）
+python3 Scripts/screenshots.py <UDID> --appearance light --state referSheet
+python3 Scripts/screenshots.py <UDID> --appearance light --state consultBy
 ```
 
 ライトとダークの各18状態を `../shots-v3-ios/L01_role.png` 〜 `D18_support_empty.png` に保存する。
 `-uiState <状態名>` はDebug限定。通常のDocuments/tsunagu.jsonと役割保存に触れず、撮影専用の一時データを毎回初期化する。
 状態名は `DebugSeed.swift` と撮影スクリプトを参照。起動引数を外せば通常データに戻る。
 Releaseでは状態注入コード・専用保存領域はコンパイルされない。
+紹介シートは `--friend-name ""` で未入力の人アイコンも再現できる。
+スクリプトは撮影直前に対象アプリをlaunchする。共有シミュレータでは、保存した画像が「つなぐ」の指定画面であることも目視確認する。
 
 ## 引き継ぎ上の注意
 

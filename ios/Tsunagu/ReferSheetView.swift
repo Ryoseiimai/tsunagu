@@ -10,12 +10,19 @@ struct ReferSheetView: View {
 
     // Web版 currentRefId と同じ役割: 短縮リンクの`ref=`と、保存する紹介記録のidを同じ値にそろえる。
     @State private var refID = UUID()
-    @State private var friendName = ""
+    @State private var friendName: String = {
+        #if DEBUG
+        return DebugSeed.friendName ?? ""
+        #else
+        return ""
+        #endif
+    }()
     @State private var tone: Tone = .casual
     @State private var text = ""
     @State private var referralCreated = false
     @State private var shortLink: String?
     @State private var isBusy = false
+    @State private var sheetWidth: CGFloat = 0
 
     private var longLink: URL? { longReferralURL(payload: SupporterPayload(supporter), refID: refID) }
     private var currentLink: String { shortLink ?? longLink?.absoluteString ?? publicBaseURLString }
@@ -24,7 +31,7 @@ struct ReferSheetView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ConnectingLineView()
+                    ConnectingLineView(leftName: friendName, rightName: supporter.name)
                         .frame(maxWidth: .infinity)
                     VStack(alignment: .leading, spacing: 6) {
                         Text("送る相手").font(.footnote).foregroundStyle(Color.secondary)
@@ -92,9 +99,14 @@ struct ReferSheetView: View {
             }
             .navigationTitle("\(supporter.name)さんを紹介")
             .navigationBarTitleDisplayMode(.inline)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SheetNavigationTitle(title: "\(supporter.name)さんを紹介", sheetWidth: sheetWidth)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("キャンセル") { dismiss() }
+                        .font(.subheadline)
                 }
             }
         }

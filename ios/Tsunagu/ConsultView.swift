@@ -71,7 +71,7 @@ struct ConsultView: View {
                 }
                 .padding(.top, 12)
 
-                ConnectingLineView()
+                ConnectingLineView(leftName: byName ?? "", rightName: payload.name)
 
                 if let byName, !byName.isEmpty {
                     HStack(spacing: 4) {

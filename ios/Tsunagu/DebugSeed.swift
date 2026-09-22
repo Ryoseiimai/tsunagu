@@ -18,6 +18,13 @@ enum DebugUIState: String {
 }
 
 enum DebugSeed {
+    static var friendName: String? {
+        guard requestedState == .referSheet else { return nil }
+        let args = ProcessInfo.processInfo.arguments
+        guard let index = args.firstIndex(of: "-friendName"), index + 1 < args.count else { return nil }
+        return args[index + 1]
+    }
+
     static var requestedState: DebugUIState? {
         let args = ProcessInfo.processInfo.arguments
         guard let index = args.firstIndex(of: "-uiState"), index + 1 < args.count else { return nil }

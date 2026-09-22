@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("device", help="Simulator UDID; explicitly targets one of multiple booted devices")
 parser.add_argument("--appearance", choices=["light", "dark", "both"], default="both")
 parser.add_argument("--state", help="Capture just one DebugUIState while keeping its sequence number")
+parser.add_argument("--friend-name", default="たかし", help="Recipient name for the referSheet capture; pass an empty string to check the person icon")
 args = parser.parse_args()
 destination = Path(__file__).resolve().parents[2] / "shots-v3-ios"
 destination.mkdir(exist_ok=True)
@@ -47,7 +48,8 @@ for appearance in appearances:
             continue
         launched_at = time.time()
         sim("launch", "--terminate-running-process", args.device, "com.ryoseiworld.tsunagu",
-            "-uiState", state, "-AppleLanguages", "(ja)", "-AppleLocale", "ja_JP")
+            "-uiState", state, "-friendName", args.friend_name,
+            "-AppleLanguages", "(ja)", "-AppleLocale", "ja_JP")
         if state == "celebration":
             # 起動速度に依存せず、DEBUGの状態変更直後（紙吹雪の途中）を撮る。
             preview = container / "tmp" / "tsunagu-preview.json"

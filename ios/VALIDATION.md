@@ -1,3 +1,14 @@
+# 小修正の検証 — R1856 / 2026-09-23
+
+- `xcodegen generate` → iOS Simulator Debugビルド → uninstall → installを実施。Releaseも`CODE_SIGNING_ALLOWED=NO`で成功。両構成とも警告・エラー0件。
+- 44ptの名前アバター、中央のAccentColorのlink、1ptの接続線を確認。紹介シートは「た／サ」、by付き求職者画面は「り／今」。未入力の紹介シートは左がperson.fill。
+- 初回だけspring(duration: 0.4)で左右の線が18ptずつ縮み、linkがscale 0.6→1・opacity 0→1。Reduce Motionでは最初から完成状態にする分岐をコード確認。
+- 紹介・配布シートは標準NavigationStackのinlineタイトルとcancellationActionを維持。principalタイトルは左右の領域を確保し、長いタイトルも中央に2行まで表示。両シートを目視確認。
+- 地域アイコンの旧指定はios/Tsunagu内に残存なし。SF Symbolsの21個すべて実在確認。
+- `shots-v3-ios/L04_refer_sheet.png`と`L14_consult_by.png`をライトで上書き。毎回launchしてから撮影し、保存画像を開いて「つなぐ」の対象画面と確認。
+- 撮影端末はiPhone16-Tsunagu-R1856 / iOS 26.5（776C232C-DFE6-474E-97F6-A54067287B3C）。日本語キーボード操作が応答しなかったため、名前「たかし」はDEBUG限定の`-friendName`引数で再現。実操作による名前変更は今回未確認。Releaseバイナリに`-friendName`・`-uiState`・`tsunagu.debug-preview`が含まれないことを確認。
+- ログは`DerivedData/R1856-debug-build.log`、`R1856-release-build.log`、`R1856-symbols.log`。配布シート確認画像は`DerivedData/R1856-distribute-check.png`。指定PNGは既存の.gitignoreに従いローカル成果物として保存。
+
 # 検証記録 — R1843 / 2026-09-23
 
 - XcodeGenからプロジェクトを生成。Debug（iPhone16-tsunagu / iOS 26.5）とRelease（generic/platform=iOS、CODE_SIGNING_ALLOWED=NO）とも成功、警告・エラー0件。

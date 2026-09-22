@@ -10,6 +10,7 @@ struct DistributeSheetView: View {
 
     @State private var isBusy = true
     @State private var link = publicBaseURLString
+    @State private var sheetWidth: CGFloat = 0
 
     private var text: String { ShareText.distribute(link: link) }
 
@@ -62,9 +63,14 @@ struct DistributeSheetView: View {
             }
             .navigationTitle("紹介してくれる人に配る")
             .navigationBarTitleDisplayMode(.inline)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SheetNavigationTitle(title: "紹介してくれる人に配る", sheetWidth: sheetWidth)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("キャンセル") { dismiss() }
+                        .font(.subheadline)
                 }
             }
         }

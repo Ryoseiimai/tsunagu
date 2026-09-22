@@ -1,5 +1,22 @@
 import SwiftUI
 
+/// 長いタイトルでもキャンセルボタンに押されない、シート中央の標準toolbarタイトル。
+struct SheetNavigationTitle: View {
+    let title: String
+    let sheetWidth: CGFloat
+    // キャンセルの文字・標準ボタンの余白を、左右に同じだけ確保する。
+    @ScaledMetric(relativeTo: .body) private var sideInset = 132
+
+    var body: some View {
+        Text(title)
+            .font(.headline)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+            .frame(width: max(44, sheetWidth - sideInset * 2))
+    }
+}
+
 // ---------- トースト（DESIGN-v3 §5-7）----------
 // alert/confirm/promptは使わない（SPEC-v2 §6）。確認は全部これかMenuの2度押しで行う。
 
