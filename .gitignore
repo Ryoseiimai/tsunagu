@@ -1,4 +1,5 @@
 ios/DerivedData/
 ios/*.xcodeproj/
+ios/.build/
 shots/
 .DS_Store
