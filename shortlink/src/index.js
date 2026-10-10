@@ -6,6 +6,10 @@ const GITHUB_PAGES_BASE = "https://ryoseiimai.github.io/tsunagu/";
 const CODE_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
 const CODE_LENGTH = 4;
 const MAX_RETRY = 5;
+// security-fix-20261010-tsunagu: 認証なし・無制限・無期限の書き込みを防ぐための上限。
+// s/ref/byの文字数上限（2,000文字あれば想定データは十分収まる）と、保存の有効期限（90日）。
+const MAX_FIELD_LENGTH = 2000;
+const LINK_TTL_SECONDS = 60 * 60 * 24 * 90;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -84,6 +88,16 @@ export default {
       if (!s || typeof s !== "string") {
         return jsonResponse({ error: "missing_s" }, 400);
       }
+      // security-fix-20261010-tsunagu: 無制限サイズの書き込みを拒否する
+      if (s.length > MAX_FIELD_LENGTH) {
+        return jsonResponse({ error: "s_too_long" }, 400);
+      }
+      if (ref !== undefined && ref !== null && (typeof ref !== "string" || ref.length > MAX_FIELD_LENGTH)) {
+        return jsonResponse({ error: "ref_too_long" }, 400);
+      }
+      if (by !== undefined && by !== null && (typeof by !== "string" || by.length > MAX_FIELD_LENGTH)) {
+        return jsonResponse({ error: "by_too_long" }, 400);
+      }
 
       let code = null;
       for (let attempt = 0; attempt < MAX_RETRY; attempt++) {
@@ -99,7 +113,8 @@ export default {
       }
 
       const record = { s, ref: ref || "", by: by || "" };
-      await env.TSUNAGU_LINKS.put(code, JSON.stringify(record));
+      // security-fix-20261010-tsunagu: 永久保存をやめ、90日で自動的に消えるようにする
+      await env.TSUNAGU_LINKS.put(code, JSON.stringify(record), { expirationTtl: LINK_TTL_SECONDS });
 
       return jsonResponse({ code, url: `https://tsunagu.densalon.com/s/${code}` });
     }

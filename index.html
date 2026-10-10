@@ -861,6 +861,18 @@
     return div.innerHTML;
   }
 
+  // LINE URLの簡易バリデーション（line.me / lin.ee のhttpsのみ許可）。
+  // iOS版 ios/Tsunagu/Models.swift の validLineURL と同じ判定をWeb版にも持たせる。
+  // security-fix-20261010-tsunagu: ?s=/?add=経由で渡るlineUrlが無検証でwindow.open()されていた分
+  function isValidLineUrl(str){
+    if(!str || typeof str !== "string") return false;
+    var url;
+    try{ url = new URL(str); }catch(e){ return false; }
+    if(url.protocol !== "https:") return false;
+    var host = url.hostname.toLowerCase();
+    return host === "line.me" || host.slice(-".line.me".length) === ".line.me" || host === "lin.ee";
+  }
+
   function initial(name){
     var chars = Array.from(String(name || ""));
     return chars.length ? chars[0] : "?";
@@ -1578,6 +1590,10 @@
       showToast("名前と得意分野は入力してください");
       return;
     }
+    if(lineUrl && !isValidLineUrl(lineUrl)){
+      showToast("LINEのURLは https://line.me/... か https://lin.ee/... の形式で入力してください");
+      return;
+    }
 
     data.myCard = {
       id: (data.myCard && data.myCard.id) || uid("sup"),
@@ -1854,11 +1870,12 @@
     });
 
     var lineBtn = $("btn-consult-line");
-    var hasLine = !!supporter.lineUrl;
+    var hasLine = isValidLineUrl(supporter.lineUrl);
     lineBtn.disabled = !hasLine;
     $("consult-reason").hidden = hasLine;
     if(consultLineHandler) lineBtn.removeEventListener("click", consultLineHandler);
     consultLineHandler = function(){
+      if(!isValidLineUrl(supporter.lineUrl)) return;
       window.open(supporter.lineUrl, "_blank");
       if(referral) updateReferralStatus(referral.id, "相談してるみたい");
     };
